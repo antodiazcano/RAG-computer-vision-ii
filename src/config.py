@@ -20,7 +20,7 @@ class EmbeddingModelConfig:
 
     api_key = os.getenv("GEMINI_API_KEY")
     embedding_model = "gemini-embedding-2-preview"
-    embedding_dim = 3_072
+    embedding_dim = 768
     render_dpi = 150
 
 
@@ -45,10 +45,10 @@ class ChatModelConfig:
     api_key = os.getenv("GEMINI_API_KEY")
     chat_model = "gemini-2.5-flash"
     system_prompt = (
-        "You are a precise knowledge-base assistant. Answer using ONLY the context "
-        "below.\n"
+        "You are a precise knowledge-base assistant. Answer using the context below.\n"
         "Always cite the source document and page number.\n"
-        "If the answer is not in the context, say so clearly."
+        "If the answer is not in the context, answer the user, but warn that the RAG "
+        "retrieval was not used."
     )
 
 
@@ -58,10 +58,9 @@ class PathsConfig:
     Class to define the configuration of the paths of the project.
     """
 
-    documents_folder = Path("documents")
-    images_folder = Path("page_images")
+    documents_folder = Path("data/documents")
     supported_extensions = {".pdf"}
-    registry_path = Path("indexed_registry.json")
+    registry_path = Path("data/indexed_registry.json")
 
 
 @dataclass

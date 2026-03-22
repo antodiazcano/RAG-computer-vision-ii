@@ -25,6 +25,7 @@ dependencies = [
     "ipykernel>=7.2.0",
     "pymupdf>=1.27.2.2",
     "google-genai>=1.68.0",
+    "streamlit>=1.55.0",
 ]
 
 [build-system]
@@ -48,8 +49,7 @@ ignore_missing_imports = true
 
 [tool.flake8]
 max-line-length = 88
-extend-ignore = ["E203", "W293"]
-# ignore = ["E731", "E203"]
+extend-ignore = ["E203", "W293", "E402"]
 
 [tool.pylint."MESSAGES CONTROL"]
 # disable = [

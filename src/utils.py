@@ -4,8 +4,11 @@ Script to write some utility functions.
 
 import hashlib
 import json
+from json import JSONDecodeError
 from pathlib import Path
 
+from google import genai
+from google.genai.client import Client
 from pinecone import Pinecone
 from pinecone.db_data.index import Index
 
@@ -31,7 +34,10 @@ def load_registry() -> dict[str, str]:
     Loads the registry of the already indexed files.
     """
 
-    return json.loads(config.paths.registry_path.read_text(encoding="utf-8"))
+    try:
+        return json.loads(config.paths.registry_path.read_text(encoding="utf-8"))
+    except JSONDecodeError:  # the file was empty (no indexed files yet)
+        return {}
 
 
 def save_registry(reg: dict[str, str]) -> None:
@@ -42,6 +48,17 @@ def save_registry(reg: dict[str, str]) -> None:
     config.paths.registry_path.write_text(
         json.dumps(reg, indent=2, ensure_ascii=False), encoding="utf-8"
     )
+
+
+def get_gen_ai_client() -> Client:
+    """
+    Obtains the gen AI client.
+
+    Returns:
+        Gen AI client.
+    """
+
+    return genai.Client(api_key=config.chat_model.api_key)
 
 
 def get_index_vector_db() -> Index:

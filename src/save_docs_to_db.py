@@ -6,14 +6,19 @@ import uuid
 from pathlib import Path
 
 import fitz
-from google import genai
 from google.genai import types
 
 from src.config import config
-from src.utils import file_hash, get_index_vector_db, load_registry, save_registry
+from src.utils import (
+    file_hash,
+    get_gen_ai_client,
+    get_index_vector_db,
+    load_registry,
+    save_registry,
+)
 
 
-GEN_AI_CLIENT = genai.Client(api_key=config.chat_model.api_key)
+GEN_AI_CLIENT = get_gen_ai_client()
 PINECONE_IDX = get_index_vector_db()
 
 
@@ -31,7 +36,10 @@ def _embed_text(text: str) -> list[float]:
     response = GEN_AI_CLIENT.models.embed_content(
         model=config.embedding_model.embedding_model,
         contents=text,
-        config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT"),
+        config=types.EmbedContentConfig(
+            task_type="RETRIEVAL_DOCUMENT",
+            output_dimensionality=config.embedding_model.embedding_dim,
+        ),
     )
 
     return response.embeddings[0].values  # type: ignore
@@ -53,6 +61,7 @@ def _obtain_chunks(path: Path) -> list[dict[str, str | int]]:
     total_pages = len(doc)
 
     for page_num in range(total_pages):
+        print(f"Obtaining chunks for page {page_num}...")
         page = doc[page_num]
         text = page.get_text("text").strip()
         if not text:
@@ -98,14 +107,20 @@ def _save_file(path: Path) -> int:
                     "source": c["source"],
                     "page": c["page"],
                     "total_pages": c["total_pages"],
-                    "image_file": c["image_file"],
                     "doc_type": c["doc_type"],
                 },
             }
         )
 
-    for i in range(0, len(vectors), 100):
-        PINECONE_IDX.upsert(vectors=vectors[i : i + 100])  # type: ignore
+    batch_size = 50
+    n_vectors = len(vectors)
+    n_batches = n_vectors // 50 + 1
+    for i in range(0, n_vectors, batch_size):
+        print(f"Saving to vector db batch {i + 1} / {n_batches}...")
+        PINECONE_IDX.upsert(vectors=vectors[i : i + batch_size])  # type: ignore
+    if n_vectors % batch_size != 0:
+        print(f"Saving to vector db batch {n_batches} / {n_batches}...")
+        PINECONE_IDX.upsert(vectors=vectors[i + batch_size :])  # type: ignore
 
     return len(chunks)
 
