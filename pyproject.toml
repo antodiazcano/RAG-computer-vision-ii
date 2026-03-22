@@ -1,0 +1,77 @@
+[project]
+name = "template-project"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pytest==8.3.4",
+    "pytest-cov==6.0.0",
+    "black==24.10.0",
+    "ruff==0.8.4",
+    "pylint==3.3.2",
+    "flake8==7.1.1",
+    "flake8-pyproject>=1.2.3",
+    "mypy==1.13.0",
+    "complexipy==1.2.0",
+    "isort==5.13.2",
+    "mkdocs==1.6.1",
+    "mkdocs-material==9.5.49",
+    "bandit>=1.9.4",
+    "torch>=2.8.0",
+]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+
+[tool.mypy]
+# cache_dir = "/dev/null"
+# check_untyped_defs = true
+# ignore_missing_imports = true
+# exclude = "build/"
+
+[[tool.mypy.overrides]]
+module = "torch_geometric.*"
+ignore_missing_imports = true
+
+[tool.flake8]
+max-line-length = 88
+# extend-ignore = ["E203", "W293"]
+# ignore = ["E731", "E203"]
+
+[tool.pylint."MESSAGES CONTROL"]
+# disable = [
+#     "R0801", "R0912", "R0913", "R0914", "R0915", "R0917", "R1711", "R1732"
+# ]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+markers = [
+    "run: mark the order of the test."
+]
+addopts = "--cov src"
+
+[tool.coverage.run]
+omit = ["src/main.py"]
+
+[tool.isort]
+profile = "black"
+lines_after_imports = 2
+
+
+# Download torch without CUDA
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cpu" },
+]
+torchvision = [
+  { index = "pytorch-cpu" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
