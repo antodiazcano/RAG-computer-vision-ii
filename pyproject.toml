@@ -1,7 +1,7 @@
 [project]
-name = "template-project"
+name = "RAG-computer-vision-ii"
 version = "0.1.0"
-description = "Add your description here"
+description = "RAG for my Computer Vision II students to ask if they have doubts."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -15,10 +15,16 @@ dependencies = [
     "mypy==1.13.0",
     "complexipy==1.2.0",
     "isort==5.13.2",
-    "mkdocs==1.6.1",
-    "mkdocs-material==9.5.49",
     "bandit>=1.9.4",
-    "torch>=2.8.0",
+    "fitz>=0.0.1.dev2",
+    "dotenv>=0.9.9",
+    "google>=3.0.0",
+    "pinecone>=8.1.0",
+    "fastapi>=0.135.1",
+    "pydantic>=2.12.5",
+    "ipykernel>=7.2.0",
+    "pymupdf>=1.27.2.2",
+    "google-genai>=1.68.0",
 ]
 
 [build-system]
@@ -33,12 +39,16 @@ build-backend = "setuptools.build_meta"
 # exclude = "build/"
 
 [[tool.mypy.overrides]]
-module = "torch_geometric.*"
+module = [
+    "fitz.*",
+    "fastapi.*",
+    "google.*"
+]
 ignore_missing_imports = true
 
 [tool.flake8]
 max-line-length = 88
-# extend-ignore = ["E203", "W293"]
+extend-ignore = ["E203", "W293"]
 # ignore = ["E731", "E203"]
 
 [tool.pylint."MESSAGES CONTROL"]
@@ -59,19 +69,3 @@ omit = ["src/main.py"]
 [tool.isort]
 profile = "black"
 lines_after_imports = 2
-
-
-# Download torch without CUDA
-
-[tool.uv.sources]
-torch = [
-  { index = "pytorch-cpu" },
-]
-torchvision = [
-  { index = "pytorch-cpu" },
-]
-
-[[tool.uv.index]]
-name = "pytorch-cpu"
-url = "https://download.pytorch.org/whl/cpu"
-explicit = true
