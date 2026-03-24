@@ -4,4 +4,6 @@
 
 2. Allow more models for the chatbot
 
-3. Añadir que se hagan embeddings de las imágenes, no solo del texto
+3. Include embeddings for images?
+
+4. Deploy
