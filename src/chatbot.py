@@ -91,26 +91,34 @@ def _create_prompt(question: str, context: str) -> str:
     )
 
 
-def generate_answer(question: str) -> tuple[str, list[dict[str, int | str | float]]]:
+def generate_answer(
+    question: str, top_k: int = 3
+) -> tuple[str, list[dict[str, int | str | float]]]:
     """
     Generates an answer to the question of the user using RAG.
 
     Args:
         question: Question of the user.
+        top_k: Number of chunks to retrieve.
 
     Returns:
         Response of the model and chunks retrieved.
     """
 
-    chunks = _retrieve_from_vector_db(question)
+    chunks = _retrieve_from_vector_db(question, top_k=top_k)
     context = "\n".join(
-        f"[{c['source']} - Page {c['page']}: {c['text']}" for c in chunks
+        f"[{c['source']} - Page {c['page']}]: {c['text']}" for c in chunks
     )
     prompt = _create_prompt(question, context)
 
-    response = GEN_AI_CLIENT.models.generate_content(
-        model=config.chat_model.chat_model, contents=prompt
-    )
+    dummy = True
+
+    if not dummy:
+        response = GEN_AI_CLIENT.models.generate_content(
+            model=config.chat_model.chat_model, contents=prompt
+        )
+    else:
+        return "aaa", chunks
 
     if not isinstance(response.text, str):
         raise RuntimeError("Chatbot could not answer!")

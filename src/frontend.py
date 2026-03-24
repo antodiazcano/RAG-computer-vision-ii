@@ -150,7 +150,7 @@ with st.sidebar:
         <div style="padding:4px 0 16px">
           <span style="font-family:'IBM Plex Mono',monospace;font-size:15px;
                        font-weight:700;color:#00e5ff;letter-spacing:.08em">
-            RAG · Knowledge Base
+            RAG - Computer Vision II
           </span>
         </div>
         <div style="margin-bottom:14px">
@@ -240,7 +240,7 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 
-    top_k = st.slider("Sources per answer (top-k)", 1, 10, 5)
+    top_k = st.slider("Sources per answer (top-k)", 1, 5, 3)
 
 
 # ======================================================================================
@@ -249,7 +249,7 @@ with st.sidebar:
 
 
 st.markdown(
-    "<h2 style='margin-bottom:4px'>Knowledge Base Chat</h2>"
+    "<h2 style='margin-bottom:4px'>Computer Vision II Assistant 🤖</h2>"
     "<p style='color:#8b949e;font-size:13px;margin-bottom:20px'>"
     "Every answer includes the exact source page rendered from the original PDF.</p>",
     unsafe_allow_html=True,
@@ -277,18 +277,27 @@ for msg in st.session_state.messages:
             )
             cols = st.columns(min(len(sources), 4))
             for col, src in zip(cols, sources):
-                with col:
-                    col.markdown(
-                        "<div style='background:#1c2330;border:1px solid #30363d;"
-                        "border-radius:4px;padding:20px;text-align:center;"
-                        "color:#484f58;font-family:IBM Plex Mono,monospace;font-size:"
-                        "10px'>No preview</div>",
-                        unsafe_allow_html=True,
-                    )
+                score_pct = round(src["score"] * 100)
+                bar_color = (
+                    "#3fb950"
+                    if score_pct >= 75
+                    else "#d29922" if score_pct >= 50 else "#f85149"
+                )
                 col.markdown(
-                    f"<div class='src-header'>{src['source']}<br>"
-                    f"Pag. {src['page']} / {src['total_pages']} "
-                    f"<span style='color:#484f58'>· {round(src['score']*100)}%</span>"
+                    f"<div style='background:#1c2330;border:1px solid #30363d;"
+                    f"border-radius:6px;padding:14px 12px;text-align:center'>"
+                    f"<div style='font-size:28px;margin-bottom:6px'>📄</div>"
+                    f"<div style='font-family:IBM Plex Mono,monospace;font-size:11px;"
+                    f"color:#e6edf3;white-space:nowrap;overflow:hidden;"
+                    f"text-overflow:ellipsis'>{src['source']}</div>"
+                    f"<div style='color:#8b949e;font-size:10px;margin:4px 0 8px'>"
+                    f"Page {src['page']} / {src['total_pages']}</div>"
+                    f"<div style='background:#21262d;border-radius:3px;height:6px;"
+                    f"overflow:hidden'>"
+                    f"<div style='width:{score_pct}%;height:100%;"
+                    f"background:{bar_color};border-radius:3px'></div></div>"
+                    f"<div style='font-family:IBM Plex Mono,monospace;font-size:10px;"
+                    f"color:{bar_color};margin-top:4px'>{score_pct}% match</div>"
                     f"</div>",
                     unsafe_allow_html=True,
                 )
@@ -303,7 +312,7 @@ if not st.session_state.messages:
             Index your documents and start asking questions
           </p>
           <p style="font-size:12px;margin-top:8px">
-            Supported: PDF · Each answer shows the rendered source page
+            Supported sources: PDF. Each answer shows the rendered source page
           </p>
         </div>
         """,
@@ -313,7 +322,7 @@ if not st.session_state.messages:
 
 # Chat input
 
-question = st.chat_input("Ask something about your documents!")
+question = st.chat_input("Ask something about your Computer Vision II course!")
 
 if question:
     st.session_state.messages.append(
@@ -322,17 +331,8 @@ if question:
     st.markdown(f"<div class='bubble-user'>🧑 {question}</div>", unsafe_allow_html=True)
 
     with st.spinner("Retrieving & generating..."):
-        answer, chunks = generate_answer(question)
-        if not chunks:
-            sources = []
-        else:
-            # Deduplicate by (source, page), keep highest score
-            seen: dict[tuple, dict] = {}
-            for c in chunks:
-                key = (c["source"], c["page"])
-                if key not in seen or c["score"] > seen[key]["score"]:
-                    seen[key] = c
-            sources = sorted(seen.values(), key=lambda x: -x["score"])
+        answer, chunks = generate_answer(question, top_k=top_k)
+        sources = sorted(chunks, key=lambda x: -x["score"])
 
     st.session_state.messages.append(
         {

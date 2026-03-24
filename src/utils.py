@@ -36,7 +36,8 @@ def load_registry() -> dict[str, str]:
 
     try:
         return json.loads(config.paths.registry_path.read_text(encoding="utf-8"))
-    except JSONDecodeError:  # the file was empty (no indexed files yet)
+    except (JSONDecodeError, FileNotFoundError):
+        print("No registry found. Starting with an empty registry.")
         return {}
 
 

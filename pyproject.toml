@@ -52,9 +52,7 @@ max-line-length = 88
 extend-ignore = ["E203", "W293", "E402"]
 
 [tool.pylint."MESSAGES CONTROL"]
-# disable = [
-#     "R0801", "R0912", "R0913", "R0914", "R0915", "R0917", "R1711", "R1732"
-# ]
+disable = ["E0401"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

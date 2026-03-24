@@ -53,7 +53,12 @@ def _obtain_chunks(path: Path) -> list[dict[str, str | int]]:
         path: Path where the file is saved.
 
     Returns:
-
+        A list that for each chunk contains:
+            - The text of the chunk.
+            - The file where the chunk was retrieved.
+            - The page of the retrieved chunk.
+            - The total number of pages of the file of the chunk.
+            - The document type of the file of the chunk.
     """
 
     doc = fitz.open(str(path))
@@ -113,14 +118,11 @@ def _save_file(path: Path) -> int:
         )
 
     batch_size = 50
-    n_vectors = len(vectors)
-    n_batches = n_vectors // 50 + 1
-    for i in range(0, n_vectors, batch_size):
-        print(f"Saving to vector db batch {i + 1} / {n_batches}...")
+    n_batches = (len(vectors) + batch_size - 1) // batch_size
+    for i in range(0, len(vectors), batch_size):
+        batch_num = i // batch_size + 1
+        print(f"Saving to vector db batch {batch_num} / {n_batches}...")
         PINECONE_IDX.upsert(vectors=vectors[i : i + batch_size])  # type: ignore
-    if n_vectors % batch_size != 0:
-        print(f"Saving to vector db batch {n_batches} / {n_batches}...")
-        PINECONE_IDX.upsert(vectors=vectors[i + batch_size :])  # type: ignore
 
     return len(chunks)
 
