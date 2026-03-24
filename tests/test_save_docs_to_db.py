@@ -18,7 +18,7 @@ with (
         PINECONE_IDX,
         _embed_text,
         _obtain_chunks,
-        _save_file,
+        _save_file_as_embeddings,
         save_all_files,
     )
 
@@ -141,8 +141,8 @@ class TestObtainChunks:
         assert chunks == []
 
 
-class TestSaveFile:
-    """Tests for the _save_file function."""
+class TestSaveFileAsEmbeddings:
+    """Tests for the _save_file_as_embeddings function."""
 
     def setup_method(self) -> None:
         """Resets mocks before each test."""
@@ -170,7 +170,7 @@ class TestSaveFile:
             },
         ]
 
-        result = _save_file(Path("a.pdf"))
+        result = _save_file_as_embeddings(Path("a.pdf"))
 
         assert result == 2
 
@@ -187,7 +187,7 @@ class TestSaveFile:
             },
         ]
 
-        _save_file(Path("a.pdf"))
+        _save_file_as_embeddings(Path("a.pdf"))
 
         PINECONE_IDX.upsert.assert_called_once()
         vectors = PINECONE_IDX.upsert.call_args.kwargs["vectors"]
@@ -210,7 +210,7 @@ class TestSaveFile:
         ]
         mock_obtain.return_value = chunks
 
-        _save_file(Path("a.pdf"))
+        _save_file_as_embeddings(Path("a.pdf"))
 
         assert PINECONE_IDX.upsert.call_count == 3  # 50 + 50 + 20
 
@@ -219,7 +219,7 @@ class TestSaveFile:
         """Checks that no upsert is called when there are no chunks."""
         mock_obtain.return_value = []
 
-        result = _save_file(Path("empty.pdf"))
+        result = _save_file_as_embeddings(Path("empty.pdf"))
 
         assert result == 0
         PINECONE_IDX.upsert.assert_not_called()
@@ -231,7 +231,7 @@ class TestSaveAllFiles:
     @patch("src.save_docs_to_db.save_registry")
     @patch("src.save_docs_to_db.file_hash")
     @patch("src.save_docs_to_db.load_registry")
-    @patch("src.save_docs_to_db._save_file")
+    @patch("src.save_docs_to_db._save_file_as_embeddings")
     def test_indexes_new_files(
         self,
         mock_save_file: MagicMock,
@@ -262,7 +262,7 @@ class TestSaveAllFiles:
     @patch("src.save_docs_to_db.save_registry")
     @patch("src.save_docs_to_db.file_hash")
     @patch("src.save_docs_to_db.load_registry")
-    @patch("src.save_docs_to_db._save_file")
+    @patch("src.save_docs_to_db._save_file_as_embeddings")
     def test_skips_already_indexed_files(
         self,
         mock_save_file: MagicMock,
@@ -288,7 +288,7 @@ class TestSaveAllFiles:
     @patch("src.save_docs_to_db.save_registry")
     @patch("src.save_docs_to_db.file_hash")
     @patch("src.save_docs_to_db.load_registry")
-    @patch("src.save_docs_to_db._save_file")
+    @patch("src.save_docs_to_db._save_file_as_embeddings")
     def test_reindexes_modified_files(
         self,
         mock_save_file: MagicMock,
@@ -317,7 +317,7 @@ class TestSaveAllFiles:
 
     @patch("src.save_docs_to_db.save_registry")
     @patch("src.save_docs_to_db.load_registry")
-    @patch("src.save_docs_to_db._save_file")
+    @patch("src.save_docs_to_db._save_file_as_embeddings")
     def test_ignores_non_supported_extensions(
         self,
         mock_save_file: MagicMock,
@@ -340,7 +340,7 @@ class TestSaveAllFiles:
 
     @patch("src.save_docs_to_db.save_registry")
     @patch("src.save_docs_to_db.load_registry")
-    @patch("src.save_docs_to_db._save_file")
+    @patch("src.save_docs_to_db._save_file_as_embeddings")
     def test_empty_folder(
         self,
         mock_save_file: MagicMock,

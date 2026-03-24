@@ -1,0 +1,581 @@
+\chapter{Introduction}
+
+This chapter aims to explain some concepts and ideas that will be taken into account along all the subject. First, we will introduce some programming concepts that go beyond coding. Then, we will explore virtual environments, containers and Git, that are tools we will use in the practice. Then, we will see how deep learning models can be deployed in production. Finally, some famous vision architectures and the concept of ``transfer learning`` will be teached.
+
+\section{Python Beyond the Basics}
+
+\subsection{Docstrings}
+
+A \textbf{docstring} is a string literal used in the definition of classes, modules, functions or methods. Unlike regular comments, which explain individual lines of code, docstrings provide high-level descriptions of what a function, class, or module does. Well-written docstrings improve code readability, maintainability, and collaboration, making them a best practice for documenting your Python code as a Python developer.
+
+There are many docstring \textbf{formats} available, but it is always best to use formats that are easily recognized by the Docstring parser and by fellow data scientists or programmers. There are no rules or regulations for selecting a Docstring format, but consistency is essential when choosing the same format throughout the project. The most commonly used formats are listed below:
+\begin{itemize}
+\item \textbf{Sphinx}: Sphinx is the traditional, easy-to-use, verbose style, and was originally created specifically for Python documentation. Sphinx uses Restructured Text, which is similar in use to Markdown.
+\item \textbf{Numpy}: The Numpy style has a lot of detail in its documentation. It is more verbose than other documentation styles, but it is an excellent option if you want detailed documentation—that is, extensive documentation of all functions and parameters.
+\item \textbf{Google}: Google Style is easier and more intuitive to use. It can be used for the shortest form of documentation.
+\end{itemize}
+
+\begin{mintedbox}{python}[title=Sphinx docstrings.]
+def add(a: int, b: int) -> int:
+    """
+    Sums two numbers.
+
+    :param a: First number.
+    :type a: int
+    :param b: Second number.
+    :type b: int
+    :return: Sum of the two numbers.
+    :rtype: int
+    """
+
+    return a + b
+\end{mintedbox}
+
+\begin{mintedbox}{python}[title=Numpy docstrings.]
+def add(a: int, b: int) -> int:
+    """
+    Sums two numbers.
+
+    Parameters
+    ----------
+    a : First number.
+    b : Second number.
+
+    Returns
+    -------
+    Sum of the two numbers.
+    """
+
+    return a + b
+\end{mintedbox}
+
+\begin{mintedbox}{python}[title=Google docstrings.]
+def add(a: int, b: int) -> int:
+    """
+    Sums two numbers.
+
+    Args:
+        a: First number.
+        b: Second number.
+
+    Returns:
+        Sum of the two numbers.
+    """
+
+    return a + b
+\end{mintedbox}
+
+
+
+
+
+\subsection{Linting}
+
+\textbf{Linting} is the process of using a tool called a linter to automatically analyze source code for potential errors, stylistic issues, and suspicious constructs. It's a form of static code analysis, meaning it examines the code without actually executing it. Linters help improve code quality, readability, and maintainability by identifying potential problems before they cause bugs or become difficult to understand.
+
+\subsubsection{Typing}
+
+Python has support for optional \textbf{type hints} (also called \textbf{type annotations}). These type hints or annotations are a special syntax that allow declaring the type of a variable. By declaring types for your variables, editors and tools can give you better support. This brings a form of \textbf{static} type checking to a language historically known for its very dynamic nature. By enabling type hints in the form of function annotations and type comments, the typing module significantly enhances code readability and understandability. It also enables better error catching during development by allowing type checkers to validate that codes are adhering to the intended types. \textbf{Mypy} is the most famous type checker and it helps to find potential errors or inconsistencies in the code.
+
+Some advantages are the improved code readability and maintainability, as type hints make code more self-documenting because they explicitly state the expected types of variables, functions, and other code elements; reduced errors, as type checkers can catch type errors early in the development process before they can cause bugs in production; and improved tooling support, as many static type checkers and integrated development environments (IDEs) can provide better code support that is type-hinted, for example code completion, refactoring, and type checking.
+
+Typing must be done in the definition of the functions, as in the examples in the Docstring section. The primitive types are \texttt{int}, \texttt{bool}, \texttt{float}, \texttt{complex}, \texttt{str}, \texttt{bytes} and \texttt{None}. You can also define lists (\texttt{list}) or tuples (\texttt{tuple}) and the ``union'' operator. For example, if we have a list that can contain both strings and integers, we can define it as \texttt{list[str | int]}. You can also define that a variable can only take a limited number of values. For example, if the variable \texttt{mode} can only take the values \texttt{"easy"}, \texttt{"normal"} and \texttt{"hard"} you can represent it with \texttt{mode: Literal["easy", "normal", "hard"]}. Finally, you can also include more complex types: for example, when defining a PyTorch model, its type is \texttt{torch.nn.Module}.
+
+
+\subsubsection{Format}
+
+Writing well-formatted code is very important. Small programs are easy to understand but as programs get complex they get harder and harder to understand. At some point, you can’t even understand the code written by you. To avoid this, it is needed to write code in a readable format.
+
+\textbf{Black} is the uncompromising Python code formatter. By using it, you agree to cede control over minutiae of hand-formatting. In return, Black gives you speed, determinism, and freedom from pycodestyle nagging about formatting. You will save time and mental energy for more important matters.
+
+We also have to deal with imports. To do that, \textbf{isort} is a Python tool that automatically organizes import statements in Python code, sorting them alphabetically and separating them into sections. By default, isort separates imports into three sections following this specific order: standard libraries, third-party libraries and application-specific libraries. This improves code clarity and allows for quick identification of the import type.
+
+\begin{warningbox}
+Sometimes isort and black can have a mismatch in spacing, so configure the isort module to be compatible with black
+\end{warningbox}
+
+\begin{mintedbox}{python}[title=Code before and after using black and isort.]
+# Before black and isort
+#-----------------------
+
+import numpy as np
+from src.utils import set_seed
+import scipy as sp
+import math
+
+
+def even_numbers_until_n(n:int)-> list[ int ]:
+    """
+    Obtains all even numbers until n.
+
+    Args:
+        n: Limit of the sequence.
+
+    Returns:
+        All even numbers until n.
+    """
+
+    even_numbers = []
+
+    for i in range (n+1):
+        if i%2==0:
+            even_numbers.append ( i )
+    
+    return even_numbers
+
+# After black and isort
+#-----------------------
+
+import math
+
+import numpy as np
+import scipy as sp
+
+from src.utils import set_seed
+
+
+def even_numbers_until_n(n: int) -> list[int]:
+    """
+    Obtains all even numbers until n.
+
+    Args:
+        n: Limit of the sequence.
+
+    Returns:
+        All even numbers until n.
+    """
+
+    even_numbers = []
+
+    for i in range(n + 1):
+        if i % 2 == 0:
+            even_numbers.append(i)
+
+    return even_numbers
+
+\end{mintedbox}
+
+\subsubsection{License}
+
+When we talk about LICENSE files, we are referring to a file in your GitHub or GitLab repository that contains legally binding language that describes to your users how they can legally use (and not use) your package.
+
+A license file is important for all open source projects because it protects both you as a maintainer and your users. The license file helps your users and the community understand:
+\begin{itemize}
+\item How they can use your software.
+\item Whether the software can be reused or adapted for other purposes.
+\item How people can contribute to your project and more.
+\end{itemize}
+
+Some maintainers customize the language in their license files for specific reasons. However, if you are just getting started, it is suggested to select a permissive license and then use the legal language templates like \href{https://choosealicense.com}{this}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=1]{images/license}
+\caption{Simple guide to choose a license.}
+\end{figure}
+
+\subsubsection{Makefile}
+
+GNU make is a utility available on Linux that streamlines the task of compiling code from the terminal. It saves us from having to write compilation commands by hand, which are often very long, and instead allows us to write something much shorter that ultimately does the same thing. In addition, make can do many other things that will make preparing the assignments for submission a piece of cake.
+
+Makefiles are files included in the root folder of a project that tell a program, make, run from the terminal, what to do with each of the code files to compile them. In the above example, a Makefile is shown. If we execute \texttt{make install}, the commands in that part will be executed. In the same way, if we execute \texttt{make format}, the commands in that part (it can be more than one) will be executed.
+
+\begin{lstlisting}[language=bash, caption=Makefile example.]
+# Declare all phony targets
+.PHONY: install format
+
+# Default target
+.DEFAULT_GOAL := all
+
+# Install project dependencies
+install:
+	@echo "Installing dependencies..."
+	@uv sync
+	@echo "Dependencies installed!"
+
+# Code formatting
+format:
+	@isort .
+	@black .
+\end{lstlisting}
+
+\subsubsection{Cognitive Complexity}
+
+\textbf{Cognitive complexity} in programming measures how difficult it is for a human to understand a piece of code. It focuses on the mental effort needed to read and follow the logic. In short, cognitive complexity reflects how easily someone can reason about the code, aiming to encourage clearer, more maintainable designs. One library that can calculate this complexity is \textbf{complexipy} and it can even force you to keep the cognitive complexity of your code below a certain threshold (typically 15), because if not the workflow fails. If the cognitive complexity is high, it is a signal that we may have to divide the function into more functions.
+
+It increases when:
+\begin{itemize}
+\item There are nested loops, conditionals, or branches (because deeper nesting is harder to track).
+\item The code uses recursion, jumps (e.g., break, continue, goto), or non-linear flows.
+\item There are switches between different contexts (like switching between functions or layers).
+\end{itemize}
+
+In contrast, it stays lower when the code is flat, linear, and well-structured.
+
+This is a brief and intuitive summary, but the hole documentation can be found in \href{https://www.sonarsource.com/docs/CognitiveComplexity.pdf}{this link}.
+
+\subsubsection{Other Useful Tools}
+
+\textbf{Flake8} is an essential linter for Python developers looking to maintain high code quality standards. It is a command-line utility that checks Python code for coding style (PEP 8), programming errors, and complex constructs.
+
+\textbf{Pylint} is a static code analysis tool for the Python programming language. It follows the style recommended by PEP 8, the Python style guide. It includes the features like checking the length of each line, checking that variable names are well-formed according to the coding standards of the project and checking that declared interfaces are truly implemented.
+
+\textbf{Ruff} is an extremely fast Python linter and code formatter written in Rust.
+
+\subsection{Testing}
+
+In software development, writing functional code is only the first step. Ensuring that the code works correctly in different scenarios, is maintainable, and can evolve without introducing errors is equally important. This is where \textbf{testing} becomes an essential practice. In Python, as in other languages, automated tests help detect errors early, facilitate refactoring, and increase confidence in the code.
+
+As a project grows, changes to one part of the system can unexpectedly affect other areas. Tests act as a safety net, allowing you to verify that modifications do not break existing functionality. They also serve as living documentation, as they show how the code is expected to behave in specific situations.
+
+Unit tests are a form of testing that focuses on verifying the behavior of the smallest units of a program, such as functions, methods, or classes, in isolation. Their goal is to ensure that each individual component works correctly before integrating it with other modules. In Python, the most common library used is \textbf{PyTest}.
+
+\begin{mintedbox}{python}[title=Example of a unit test for the add function.]
+import numpy as np
+import pytest
+
+from src.utils import add
+
+
+def test_add() -> None:
+    """
+    This test checks that the output of the add function is correct.
+    """
+
+    n = 10
+
+    for _ in range(n):
+        x = np.random.randint(0, n)
+        y = np.random.randint(0, n)
+        assert add(x, y) == x + y
+\end{mintedbox}
+
+
+\section{Virtual Environments and Containers}
+
+\subsection{Virtual Environments}
+
+A \textbf{virtual environment} is an isolated space where dependencies (libraries and packages) specific to a Python project can be installed without affecting the overall system or other projects. Each virtual environment has its own version of Python and its own installed packages, which prevents conflicts between different projects that require different versions of the same library.
+
+Virtual Environment have many advantages:
+\begin{itemize}
+\item Dependency isolation: Prevents package versions required by one project from conflicting with those of another. For example, one project may require Django 4.0 and another Django 3.2. Without a virtual environment, only one version could be installed globally.
+\item Facilitates reproducibility: By sharing a project, other developers can recreate the exact same environment with the same dependencies (requirements.txt or pyproject.toml).
+\item Keeps the system clean: No packages are installed globally, preventing contamination of the system's base Python environment.
+\item Testing in Different python versions: Allows you to test a project in different Python versions without affecting the main installation.
+\end{itemize}
+
+A modern, ultra-fast tool for managing virtual environments and packages in Python is \textbf{uv}, developed by Astral (the creators of Ruff). It is designed to be a more efficient alternative to \texttt{venv} and \texttt{virtualenv}.
+
+\subsection{Containers}
+
+Both containers and virtual machines (VMs) are virtualization technologies that allow you to isolate applications and their dependencies. However, they work differently and have different use cases.
+
+A \textbf{virtual machine} is a complete emulation of an operating system (OS) that runs on a hypervisor (such as VirtualBox, VMware, or Hyper-V). The main characteristics are:
+\begin{itemize}
+\item Strong isolation: Each VM has its own guest OS, kernel, drivers, and libraries.
+\item Broad compatibility: It can run any OS within another (e.g., Linux on Windows or vice versa).
+\item High resource consumption: Requires a full copy of the OS, making it heavy on CPU, RAM, and storage.
+\item Slow startup: Starting a VM can take seconds or even minutes.
+\end{itemize}
+
+A \textbf{container} is a lightweight, portable unit that packages an application with all its dependencies, but shares the host system's kernel. Docker is the most famous platform to create, manage and run containers. The main characteristics are:
+\begin{itemize}
+\item Efficiency: It does not require a full OS, just the necessary libraries and binaries.
+\item Instant startup: Containers start in milliseconds.
+\item Portability: They work the same on any system that supports containers (Linux, Windows, macOS).
+\item Reduced isolation: By sharing the kernel, a critical failure can affect other containers.
+\end{itemize}
+
+If you are looking for efficiency and scalability, containers are the best option. But if you need complete isolation and compatibility with any OS, a VM is still useful.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.2]{images/container}
+\caption{Virtual Machines (VMs) vs Containers.}
+\end{figure}
+
+
+
+\section{Git}
+
+\subsection{Version Control}
+
+\textbf{Version control} is a system that tracks and manages changes to files, especially in software development. It allows multiple people to work on the same project, keeps a history of all changes, and makes it easy to undo mistakes or restore previous versions.
+
+Why is it important?
+\begin{itemize}
+\item Collaboration: Multiple developers can work on different parts of a project simultaneously.
+\item History tracking: You can see who changed what and when.
+\item Backup: Previous versions are saved, so you can recover from mistakes.
+\item Experimentation: You can create branches to test new ideas without affecting the main project.
+\item Conflict resolution: It helps merge changes when two people edit the same files.
+\end{itemize}
+
+\subsection{How it Works}
+
+Figure \ref{git} explains \textbf{Git} in depth:
+
+\begin{itemize}
+\item The \textbf{working directory} is the place in your computer where you work. With \texttt{git add} you move the changes of the working directory to the staging area.
+\item The \textbf{staging area} is like a ``buffer'' where the changes are stored before being confirmed. With \texttt{git commit} you move the changes of the working directory to the local repository.
+\item The \textbf{local repository} is the place where the commits are stored in your machine. With \texttt{git push}, you move the changes of the local repo to the remote repo. With \texttt{git reset}, you revert the changes done in the local repository.
+\item The \textbf{remote repository} is the repository in the server, for example GitHub or GitLab. With \texttt{git fetch} you move the changes in the remote repo to the local repo, but they are not yet merged to the working directory, and with \texttt{git pull} you move and merge the changes in the remote repo to the working directory.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.5]{images/git}
+\caption{How Git works.}
+\label{git}
+\end{figure}
+
+\subsection{GitHub Actions}
+
+\textbf{GitHub Actions} is a feature in GitHub that lets you automate tasks directly in your code repository. You can set up workflows that run on events like pushing code, opening pull requests, or creating releases.
+
+It is commonly used for CI/CD (Continuous Integration/Continuous Deployment), fo example, automatically build, test and deploy your code; for running scripts (e.g., linting, formatting, or security checks); and for automating repetitive tasks like labeling issues or sending notifications.
+
+Workflows are defined in simple YAML files stored in the \texttt{.github/workflows/} folder, and they run on the servers of GitHub. In short, GitHub Actions helps you streamline your development process by connecting your code changes to automated pipelines.
+
+
+\section{Deep Learning in Production}
+
+\subsection{Models in Production}
+
+A \textbf{model in production} means a machine learning model that has been deployed and is actively being used in a real-world system to make predictions or decisions (e.g., recommending products, detecting fraud or forecasting demand).
+
+It is important because it bridges the gap between building a model and delivering business value; only in production you can test how well a model performs with real, live data; and it allows continuous improvement by monitoring performance, retraining when needed, and adapting to data drift. Without deployment, a model is just a prototype. Putting it in production is what turns it into a usable, impactful tool for end-users or business processes.
+
+\subsection{Types of Deployment}
+
+When a model comes into production, it has to be tested to see how it works in a real scenario. We will differentiate between the candidate model (the new model) and the champion model (the current model). There are many ways to deal with this problem:
+\begin{itemize}
+\item \textbf{Shadow deployment}:
+\begin{enumerate}
+\item Deploy the candidate model in parallel with the champion model.
+\item When a new request arrives, make predictions in parallel with both models, but only return to the user the prediction of the champion model.
+\item Save the value of both predictions.
+\item Repeat the process until there is enough data to compare both models. If the candidate model is better, change the champion model by the candidate model.
+\end{enumerate}
+\item \textbf{A/B testing}:
+\begin{enumerate}
+\item Deploy the candidate model in parallel with the champion model.
+\item A certain amount of traffic (usually 50\%) is routed to the champion model and the rest to the candidate model.
+\item Monitorize and analyze predictions and use feedback of the user to see if there is a statistical significant difference. If the candidate model is better, change the champion model by the candidate model.
+\end{enumerate}
+\item \textbf{Canary deployment}:
+\begin{enumerate}
+\item Deploy the candidate model in parallel with the champion model.
+\item A certain amount of traffic (usually it starts with a low percentage) is routed to the champion model and the rest to the candidate model.
+\item If the result of the candidate model is good, the percentage routed to this model is increased. Otherwise, abort the process.
+\item The process finishes when either when all the traffic is routed to the candidate model or when the process is aborted.
+\end{enumerate}
+\end{itemize}
+
+There are some advantages and disadvantages for each deployment:
+\begin{itemize}
+    \item Shadow deployment: It is safe, because we do not test the new model with real requests, but more computational resources are needed, as we make two predictions (therefore, we need two forward passes) per request.
+    \item A/B testing: It is less safe, but only one forward pass is needed per request.
+    \item Canary deployment: It is safer than the A/B testing, but less safe than the shadow deployment. Also, only one forward pass is needed. However, we have to take into account that if we do not obtain the labels of the predictions easily, it may take a long time until the model is fully deployed. For example, in recommendation systems we can obtain the label immediately (the user clicks on the recommendation or not), but for other tasks, like default prediction, it may take three months or more until we obtain the label.
+\end{itemize}
+
+\section{Important Vision Architectures}
+
+\subsection{AlexNet}
+
+\textbf{AlexNet} is a deep convolutional neural network introduced in 2012 for image classification (ImageNet). It consists of 5 convolutional layers followed by 3 fully connected layers. ReLU is used always as the activation function.
+
+Key innovations:
+\begin{itemize}
+    \item Use of ReLU activations for faster convergence, avoiding vanishing gradients.
+    \item Introduction of dropout to reduce overfitting.
+    \item Applied data augmentation for improved generalization, enhancing scale and rotation invariance.
+    
+\end{itemize}
+
+% \added[id=lu, comment={Aclara la idea principal}]{Este es un nuevo enunciado.}
+
+
+ % \item Applied data augmentation for improved generalization.Data augmentation for improved generalization, enhancing invariance to scale changes and rotation.
+
+
+\subsection{VGGNet}
+
+\textbf{VGGNet} is a deep convolutional neural network introduced in 2014. It is known for using small \(3 \times 3\) convolution filters and a very deep architecture.
+
+Key innovations:
+\begin{itemize}
+    \item Use of very small \(3 \times 3\) convolution filters throughout the network.  
+    \item Deep architecture (up to 19 layers in VGG-19), while maintaining computational efficiency.
+    \item Homogeneous design that simplifies implementation and transfer learning.  
+\end{itemize}
+
+\subsection{GoogLeNet}
+
+\textbf{GoogLeNet} is a very deep neural network introduced in 2014 and composed of three main sections: the convolutions, the inception modules and the output. The name ``inception'' comes from the meme ``we need to go deeper'' from the movie Inception.
+
+Key innovations:
+\begin{itemize}
+    \item Introduction of the Inception module for efficient multi-scale feature extraction.  
+    \item Use of $1\times 1$ convolutions for dimensionality reduction.  
+    \item Auxiliary classifiers to combat vanishing gradients.  
+    \item Replacement of fully connected layers with global average pooling to reduce parameters.
+\end{itemize}
+
+\subsection{ResNet}
+
+\textbf{ResNet} (Residual Network) is also a very deep neural network, but introduced in 2015, and that revolutionized deep networks with the idea of residual connections or skip connections to solve the degradation problem in very deep networks.
+
+Key innovations:
+\begin{itemize}
+    \item Introduction of residual connections to ease training of very deep networks.  
+    \item Enables building networks with over 100 layers without performance degradation.  
+    \item Significant improvement in accuracy and efficiency for computer vision tasks.
+\end{itemize}
+
+\subsection{DenseNet}
+
+\textbf{DenseNet} (Densely Connected Convolutional Networks) is another type of deep neural network, introduced in 2017, that connects each layer to every other layer in a feed-forward fashion, improving information and gradient flow throughout the network.
+
+Key innovations:
+\begin{itemize}
+    \item Dense connectivity: each layer receives inputs from all previous layers, enhancing feature reuse and reducing vanishing gradients.
+    \item More parameter-efficient than traditional networks despite increased depth.
+    \item Improves accuracy while requiring fewer parameters.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.49\textwidth}
+        \centering
+        \includegraphics[scale=1.2]{images/alexnet}
+        \caption{AlexNet.}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.49\textwidth}
+        \centering
+        \includegraphics[scale=0.35]{images/vggnet}
+        \caption{VGGNet.}
+    \end{minipage}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.65]{images/inception.jpg}
+\caption{Inception module: naive version (left) and with dimensionality reduction along the channels dimension (right).}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.35]{images/resnet}
+\caption{Residual module.}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.43]{images/densenet}
+\caption{Example of DenseNet and a dense module.}
+\end{figure}
+
+\section{Transfer Learning}
+
+\subsection{Transfering Knowledge}
+
+\textbf{Transfer learning} is a machine learning technique where a model developed for one task is reused as the starting point for a different but related task. Instead of training a model from scratch, you take a pre-trained model (usually trained on a large dataset) and fine-tune it or use it as a feature extractor for your specific problem.
+
+This approach is especially useful when you have limited data for your target task or if training a large model from scratch would be too expensive. In deep learning, it is common in computer vision and natural language processing because pre-trained models capture general patterns (like edges in images or grammar in text) that can be adapted to new tasks.
+
+\subsection{Fine-tuning}
+
+In practice, neural networks are seldom trained completely from scratch (i.e., with random initialization). Instead, one typically builds upon weights obtained from prior training. You can either use the pretrained model as a fixed feature extractor (appending a separate classifier) or you can replace the final layer with a new linear classifier (adjusting its size to the new number of target classes) and resume training. In this case you, can fine-tune all or just some of its layers.
+
+\noindent
+Depending on the size of the new dataset and its similarity to the original training data, broadly four scenarios can be distinguished:
+
+\begin{itemize}
+    \item \textbf{Large, similar dataset.} In this scenario, you can start just train the last (task-specific) layer. If data resources permits, you can gradually unfreeze previous layers as training stabilizes
+   
+    \item \textbf{Large, dissimilar dataset.} Here, you can fine‑tune every layer of the pretrained model, but if the new domain (e.g., medical imaging vs. ImageNet) truly diverges, the original weights may offer limited benefit. If compute and data resources permit, consider training from scratch on a more closely related dataset. This can sometimes converge faster than heavy fine‑tuning of mismatched weights. 
+
+    \item \textbf{Small, similar dataset.} In this case, you typically freeze the pretrained network and train only the last layer. Alternatively, you can use the frozen backbone as a feature extractor and train an external classifier.
+
+    \item \textbf{Small, dissimilar dataset.} In this situation, the pretrained representations may not align with the new domain. A possible starting point is to freeze the backbone and extract features from intermediate layers to determine if the learned features adapt to the new data. As an alternative, you can consider other strategies such as few-shot learning.
+
+\end{itemize}
+
+\begin{table}[h]
+\centering
+\setlength{\extrarowheight}{5pt}
+\label{tab:transfer_learning}
+        \begin{tabular}{|>{\raggedright\arraybackslash}m{1.3cm}
+            |>{\raggedright\arraybackslash}m{4.5cm}
+            |>{\raggedright\arraybackslash}m{4.5cm}|}
+            \hline
+                & \textbf{Similar dataset} & \textbf{Different dataset} \\
+            \hline
+                \textbf{A lot of data} & Finetune some or all model layers & Either finetune all model layers or train from scratch! \\
+            \hline
+                \textbf{Little data} & Use linear classifier on final layer or use the backbone as feature extractor & (Bad scenario) Extract features from intermediate layers or try another model/strategy \\          
+            \hline
+        \end{tabular}
+    
+\caption{Transfer Learning Strategy Selection Guide}
+\end{table}
+
+\section{Exercises}
+
+
+\begin{question}
+Think of any function you want and write its docstrings in the three formats (Sphinx, Numpy and Google).
+\end{question}
+
+\begin{question}
+Use the function of the previous question and annotate its types. It must include a \texttt{list} and a variable that can have two or more types. If the requirements are not satisfied, think of another function.
+\end{question}
+
+\begin{question}
+Install the Black extension in VSCode and apply it to the function(s) you wrote in the previous questions. You can also install Black (for example, via \texttt{pip}) and run it on the terminal: \texttt{black .}
+\end{question}
+
+\begin{question}
+Write a Makefile with the following commands:
+\begin{enumerate}
+\item \texttt{install}: Install dependencies with either \texttt{pip} or \texttt{uv}.
+\item \texttt{format}: Run isort and Black.
+\item \texttt{lint}: Check with isort and Black that the format is correct; use Mypy to check typing; use Flake8, Ruff and Pylint to check that the code follows good practices; and use Complexipy to check that your code is not too complex.
+\end{enumerate}
+You can include at the end the following code to run all the commands sequentially at once with just executing \texttt{make all}!
+\end{question}
+\begin{lstlisting}[language=bash]
+all: install format lint test clean
+	@echo "All tasks completed!"
+\end{lstlisting}
+
+\begin{question}
+Write three functions and estimate the cognitive complexity you think they have. The first one must be simple, the second a little bit complex and the last one very complex. Then check the true cognitive complexity with Complexipy to see if your estimate has been close to the real value.
+\end{question}
+
+\begin{question}
+Write a function and implement exhaustive tests. You must check edge-cases, normal cases and random cases.
+\end{question}
+
+\begin{question}
+Create a folder and use uv to manage your virtual environment. You can follow this \href{https://www.youtube.com/watch?v=l6WyNOIk0Ng&t=604s}{video}.
+\end{question}
+
+\begin{question}
+Use GitHub Actions in such a way that right after each push you check the linting part and tests of the code.
+\end{question}
+
+\begin{question}
+What are the advantages and disadvantages of each type of deployment?
+\end{question}
+
+\begin{question}
+Create a table comparing all the famous architectures seen in this chapter.
+\end{question}
+
+\begin{question}
+Load a pretrained model and fine-tune it in the MNIST dataset.
+\end{question}

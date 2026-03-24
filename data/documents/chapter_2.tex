@@ -1,0 +1,413 @@
+\chapter{Object Detection}
+
+\section{Introduction}
+
+\subsection{Definition of the Problem}
+
+In image classification tasks, we assume that there is only one major object
+in the image and we only focus on how to recognize its category. However, there are often multiple objects in the image of interest. We not only want to know their categories, but also their specific positions in the image. In computer vision, we refer to such tasks as \textbf{object detection} (or object recognition).
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.5]{images/obj_det}
+\caption{Example of object detection.}
+\end{figure}
+
+Object detection has been widely applied in many fields. For example, self-driving needs to plan traveling routes by detecting the positions of vehicles, pedestrians, roads and obstacles in the captured video images. Besides, robots may use this technique to detect and localize objects of interest throughout its navigation of an environment. Moreover, security systems may need to detect abnormal objects, such as intruders or bombs.
+
+In object detection, we usually use a \textbf{bounding box} to describe the spatial location of an object. The bounding box is rectangular, which is determined by the $x$ and $y$ coordinates of the upper-left corner of the rectangle and the such coordinates of the lower-right corner. Another commonly used bounding box representation is the $(x, y)$-axis coordinates of the bounding box center, and the width and height of the box.
+
+\subsection{Detecting a Single Object}
+
+If we want to detect a single object, there is a simple method. We can pass the image through a CNN and then use two MLPs: the first one to obtain the class of the object and second one to obtain the coordinates of the box. Finally, the loss would be the weighted sum of the Cross Entropy (or Binary Cross Entropy in some cases) Loss of the classification and the $L_1$ or $L_2$ Loss of the predicted coordinates.
+
+Formally, if there are $n$ classes, the true label is the one-hot vector $y=(y_1, \ldots, y_n)^T$ where $y_i=1$ if the $i$-th class is the true class, the logits predicted are $\hat{y}=(\hat{y}_1, \ldots, \hat{y}_n)^T$, the true coordinates are $(x_1, y_1, x_2, y_2)$ and the predicted coordinates are $(\hat{x}_1, \hat{y}_1, \hat{x}_2, \hat{y}_2)$, the loss is:
+$$\mathcal{L} = w \mathcal{L}_{\text{CE}} + (1-w)\mathcal{L}_{L_2},$$
+where
+$$\mathcal{L}_{\text{CE}} = \sum_{i=1}^n\log\left(\dfrac{\exp(\hat{y}_i)}{\sum_{j=1}^n\exp(\hat{y}_j)}\right)y_i$$
+and
+$$\mathcal{L}_{L_2}=\dfrac{1}{4}\left(\left(x_1-\hat{x}_1\right)^2 + \left(y_1-\hat{y}_1\right)^2 + \left(x_2-\hat{x}_2\right)^2 + \left(y_2-\hat{y}_2\right)^2\right).$$
+
+Note that we could also use the $L_1$ loss instead and $w\in[0, 1]$ is a parameter to control the weight given to each loss. Moreover, if we only want to detect one single object of the same class we can use a CNN and just one MLP for the coordinates of the bounding box and it would only be a regression problem. This could be useful, for example, if we want to track the position of the ball in a football match. We are not interested in players, goalkeepers or the referee, only in the ball. We would use the model for each frame and obtain the position of the ball throughout the match.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.10]{images/flow}
+\caption{Detecting a single object.}
+\end{figure}
+
+\subsection{Naive Approach}
+
+The problem of the previous approach is that we are constrained to predicting just one object, but images usually have more than one. A \textbf{naive approach} is to create different crops of the image (see Figure \ref{crops}), use a CNN and classify each crop. Note that here we need to include an extra class, which represents the \textbf{background}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.8]{images/rp}
+\caption{Many crops for an image.}
+\label{crops}
+\end{figure}
+
+% However, there is a big problem: the number of possible boxes increases very fast with the width and height of the image. Consider an image of size $H\times W$ and a box of size $h\times w$. The number of possible $x$ positions is $W-w+1$ and the number of possible $y$ positions is $H-h+1$. Therefore, there are $(W-w+1)(H-h+1)$ possible boxes. This is for a single box given a pixel, but if we sum in both dimensions of the image the total possible boxes is
+However, there is a big problem: the number of possible boxes increases very fast with the width and height of the image. Consider an image of size $H\times W$ and let the first index be 1 instead of 0 for this example. A bounding box is determined by two rows $x_1, x_2$ and two columns $y_1, y_2$ with $1\leq x_1 \leq x_2 \leq H$ and $1 \leq y_1 \leq y_2 \leq W$. Now:
+\begin{itemize}
+    \item To select the rows:
+    \begin{itemize}
+        \item For $x_1=1$ there are $H$ options for $x_2$ ($1, 2, \ldots, H$).
+        \item For $x_1=2$ there are $H-1$ options for $x_2$ ($2, 3, \ldots, H$).
+        \item \ldots
+        \item For $x_1 = H$ there is $1$ option for $x_2$ ($H$).
+    \end{itemize}
+    Therefore, there is a total of $\sum_{i=1}^Hi = \dfrac{H(H+1)}{2}$ possible selections.
+    \item To select the columns:
+    \begin{itemize}
+        \item For $y_1=1$ there are $H$ options for $y_2$ ($1, 2, \ldots, W$).
+        \item For $y_1=2$ there are $H-1$ options for $y_2$ ($2, 3, \ldots, W$).
+        \item \ldots
+        \item For $y_1 = H$ there is $1$ option for $y_2$ ($W$).
+    \end{itemize}
+    Therefore, there is a total of $\sum_{i=1}^Wi = \dfrac{W(W+1)}{2}$ possible selections.
+    \item In conclusion, there is a total of $\dfrac{H(H+1)}{2}\cdot\dfrac{W(W+1)}{2}$ possible selections.
+\end{itemize}
+
+Note: Try to calculate by hand all possible bounding boxes for a $3\times 3$ image and check that the answer is $(3\cdot 4/2)\cdot(3\cdot 4/2) = 36$.
+
+There is no way we can evaluate all this boxes. Even if we select randomly a fixed number of boxes per pixel, for example $c$, the total number of boxes would be roughly\footnote{Roughly because in some pixels $(x,y) \in [1, \ldots, H]\times [1, \ldots, W]$ there are less than $c$ possible bounding boxes.} $cHW$, still a lot, and we take the risk of not selecting the correct ones.
+
+%%Jorge. No sería: \sum_w(W-w+1) = W/2(W+3)
+
+
+\section{Previous Concepts}
+
+This section introduces some key concepts in order to solve the problem correctly. Intersection over Union, Non-Max Suppresion and Mean Average Precision are metrics and topics we need to understand how to deal with. Selective Search is an algorithm used to propose regions that are likely to contain objects of interest.
+
+\subsection{Intersection over Union (IoU)}
+
+If the ground-truth bounding box of the object is known, how can a ``good'' predicted bounding box here be \textbf{quantified}? Intuitively, we can measure the similarity between the anchor box and the ground-truth bounding box. We know that the Jaccard index can measure the similarity between two sets. Given sets $A$ and $B$, their Jaccard index is the size of their intersection divided by the size of their union:
+$$J(A, B)=\dfrac{|A\cap B|}{|A\cup B|}.$$
+In fact, we can consider the pixel area of any bounding box as a set of pixels. In this way, we can measure the similarity of the two bounding boxes by the Jaccard index of their pixel sets. For two bounding boxes, we usually refer their Jaccard index as \textbf{Intersection over Union (IoU)}, which is the ratio of their intersection area to their union area. The range of an IoU is between 0 and 1: 0 means that two bounding boxes do not overlap at all, while 1 indicates that the two bounding boxes are equal. An example is shown in Figure \ref{iou}, where the IoU is computed for many different bounding boxes.
+
+%Jorge: In Jaccard index, || means cardinality. It represents number of pixels of the given sets.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.6]{images/iou}
+\caption{IoU calculated for different bounding boxes.}
+\label{iou}
+\end{figure}
+
+
+
+\subsection{Non-Maximum Suppresion (NMS)}
+
+When there are many similar (with significant overlap) predicted bounding boxes, they can be potentially output for surrounding the same object. To simplify the output of the network, we can merge similar predicted bounding boxes that belong to the same object by using \textbf{Non-Maximum Suppression (NMS)}. An example is shown in Figure \ref{nms}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.18]{images/nms2}
+\caption{NMS process for an image with two classes: person (blue) and dog (red).}
+\label{nms}
+\end{figure}
+
+For a predicted bounding box $B$, the object detection model calculates the predicted likelihood for each class. Denoting by $p$ the largest predicted likelihood, the class corresponding to this probability is the predicted class for $B$. Specifically, we refer to $p$ as the confidence (score) of the predicted bounding box $B$. On the same image, all the predicted non-background bounding boxes are sorted by confidence in descending order to generate a list $L$. Then we manipulate the sorted list $L$ in the following steps:
+\begin{enumerate}
+\item Select the predicted bounding box with the highest confidence from $L$ that has not been previously selected and remove all predicted bounding boxes whose IoU with the selected box exceed a predefined threshold $\varepsilon$ from $L$. At this point, $L$ keeps the selected bounding box but drops others that are too similar to it. In a nutshell, those with non-maximum confidence scores are suppressed.
+\item Repeat the above process until all the predicted bounding boxes in $L$ have been selected. At this time, the IoU of any pair of predicted bounding boxes in $L$ is below the threshold $\varepsilon$; thus, no pair is too similar with each other.
+\item Output all the predicted bounding boxes in the list $L$.
+\end{enumerate}
+
+\textbf{Note}: In step 1, you can consider that, in addition to exceeding the IoU threshold, the boxes must be labeled with the same class. In step 3, you can delete bounding boxes whose probability is below certain threshold, for example $0.5$.
+
+
+
+\subsection{Mean Average Precision (mAP)}
+
+The \textbf{mean Average Precision (mAP)} is a widely used performance metric in information retrieval and object detection tasks in machine learning. It provides a single number that summarizes the precision-recall curve, reflecting how well a model is performing across different threshold levels. This metric is particularly useful in scenarios like object detection, where models not only need to detect the presence of objects but also accurately localize and classify them. 
+
+The \textbf{precision} is the ratio of true positive predictions out of all positive predictions made. It measures the accuracy of the positive predictions:
+$$\text{precision} = \dfrac{\text{TP}}{\text{TP}+\text{FP}}.$$
+
+The \textbf{recall} is the ratio of true positive predictions out of all actual positive observations:
+$$\text{recall} = \dfrac{\text{TP}}{\text{TP}+\text{FN}}.$$
+
+The steps to calculate this metric are the following:
+\begin{enumerate}
+\item For each class in the dataset, sort the predicted bounding boxes by their confidence scores in descending order and calculate precision and recall at each threshold (for example, we can iterate over a linspace from $0$ to $1$ with step $0.05$) by comparing the predicted bounding boxes with the ground truth boxes using IoU. A prediction is considered a true positive if the IoU with the ground truth box is above the threshold.
+\item Plot precision ($y$-axis) against recall ($x$-axis) for each class, generating a precision-recall curve.
+\item The Average Precision (AP) for a class is the area under the precision-recall curve. This can be approximated using numerical integration methods such as the trapezoidal rule.
+\item The mAP is the mean of AP values across all classes in the dataset. In other words, if there are $N$ classes:
+$$\text{mAP} = \dfrac{1}{N}\sum_{i=1}^N\text{AP}_i.$$
+\end{enumerate}
+
+In cases where certain classes have significantly more instances than others, weighting the APs by the number of instances per class can provide a more balanced mAP.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.5]{images/map}
+\caption{Example of precision-recall curves for different classes.}
+\end{figure}
+
+\subsection{Selective Search}
+
+To address the problem of the naive approach we can use the \textbf{selective search}, which is an algorithm that creates a small number of region proposals in comparation. We will explain a summary, but you can see the \href{https://ivi.fnwi.uva.nl/isis/publications/2013/UijlingsIJCV2013/UijlingsIJCV2013.pdf}{original paper} for more details.
+
+\begin{enumerate}
+\item Generate initial sub-segmentation of input image using the method described by Felzenszwalb et al in his paper \href{https://cs.brown.edu/people/pfelzens/papers/seg-ijcv.pdf}{``Efficient Graph-Based Image Segmentation''}.
+\item Recursively combine the smaller similar regions into larger ones. A greedy algorithm can be used to combine similar regions to make larger regions. The algorithm is:
+\begin{enumerate}
+\item From set of regions, choose two that are most similar.
+\item Combine them into a single, larger region.
+\item Repeat the above steps for multiple iterations.
+\end{enumerate}
+\item Use the segmented region proposals to generate candidate object locations.
+\end{enumerate}
+
+Note that we can reduce the amount of region proposals generated and it is also very efficient, so not too much time is wasted. The steps of the algorithm are shown in Figures \ref{sa1}, \ref{sa2} and \ref{sa3}, respectively.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.45]{images/sa1}
+\caption{First step of the selective search.}
+\label{sa1}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.58]{images/sa2}
+\caption{Second step of the selective search.}
+\label{sa2}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.6]{images/sa3}
+\caption{Last step of the selective search.}
+\label{sa3}
+\end{figure}
+
+\subsection{Anchor Boxes}
+
+Suppose that the input image has a height of $h$ and width of $w$. We generate \textbf{anchor boxes} with different shapes centered on each pixel of the image. Let the scale be $s \in (0, 1]$ and the aspect ratio (ratio of width to height) is $r>0$. Then the width and height of the anchor box are $ws\sqrt{r}$ and $hs/\sqrt{r}$, respectively. Note that when the center position is given, an anchor box with known width and height is determined.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=1.1]{images/anchor_boxes}
+\caption{Some anchor boxes centered in a pixel of the dog.}
+\label{anchor_boxes}
+\end{figure}
+
+To generate multiple anchor boxes with different shapes, let's set a series of scales $s_1, \ldots, s_n$ and a series of aspect ratios $r_1, \ldots, r_m$. When using all the combinations of these scales and aspect ratios with each pixel as the center, the input image will have a total of $whnm$ anchor boxes. Although these anchor boxes may cover all the ground-truth bounding boxes, the computational complexity is easily too high. In practice, we can only consider those
+combinations containing $s_1$ or $r_1$:
+$$(s_1, r_1), (s_1, r_2), \ldots, (s_1, r_m); (s_2, r_1), (s_3, r_1), \ldots(s_n, r_1).$$
+That is to say, the number of anchor boxes centered on the same pixel is $n+m-1$. For the entire input image, we will generate a total of $wh(n+m-1)$ anchor boxes. Typically $s_1$ is an intermediate scale or scale of reference and $r_1$ a square 1:1 ratio or a neutral ratio.
+
+
+
+\section{R-CNNs}
+
+The \textbf{Region-based Convolutional Neural Networks (R-CNNs)} were one of the first networks used for object detection. The algorithm is the following and an schema is shown in Figure \ref{rcnn}:
+
+\begin{enumerate}
+\item  Perform selective search to extract multiple high-quality region proposals on the input image.
+\item  Choose a pretrained CNN and truncate it before the output layer. Resize each region proposal to the input size required by the network, and output the extracted features for the region proposal through forward propagation.
+\item  Take the extracted features and labeled class of each region proposal as an example. Train multiple support vector machines (SVMs) to classify objects, where each SVM individually determines whether the example contains a specific class\footnote{In fact, there are many ways to deal with this step. We just want to predict the class of the object in the region proposal. For example, we could use a MLP for multi-class classification. However, the original approach was the one described using SVMs.}.
+\item  Take the extracted features and labeled bounding box of each region proposal as an example. Train a linear regression model to predict the ground-truth bounding box\footnote{Again, we can meet this goal in many ways, for example using a Random Forest Regressor instead of a linear regression. We can even use a model to predict at the same time the class and the coordinates of the bounding box at the same time. However, the original approach was the one described using linear regression.}.
+\item Translate the predicted bounding box coordinates to the original image.
+\item Select a confidence threshold (for example, only consider region proposals with predicted class with probability greater or equal than 0.5) and use NMS to output the final predictions.
+\end{enumerate}
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=1]{images/rcnn}
+\caption{R-CNN algorithm.}
+\label{rcnn}
+\end{figure}
+
+Although the R-CNN model uses pretrained CNNs to effectively extract image features, it is slow. Imagine that we select thousands of region proposals from a single input image: this requires thousands of CNN forward propagations to perform object detection. This massive computing load makes it infeasible to widely use R-CNNs in real-world applications.
+
+
+
+\section{Fast R-CNNs}
+
+The main performance bottleneck of an R-CNN lies in the independent CNN forward propagation for each region proposal, without sharing computation. Since these regions usually have overlaps, independent feature extractions lead to much repeated computation. One of the major improvements of the \textbf{Fast Region-based Convolutional Neural Networks (Fast R-CNNs)} from the R-CNN is that the CNN forward propagation is only performed once on the entire image.
+
+The algorithm is the following and an schema is shown in Figure \ref{fastrcnn}:
+
+\begin{enumerate}
+\item The input of the CNN for feature extraction is the entire image, rather than individual region proposals. Moreover, this CNN is trainable. Given an input image, let the shape of the CNN output be $1 \times c \times h_1\times w_1$.
+\item  Suppose that selective search generates $n$ region proposals. These region proposals (of different shapes) mark regions of interest (of different shapes) on the CNN output. 
+\item These regions of interest have to extract features of the same shape (say height $h_2$ and width $w_2$ are specified) in order to be easily concatenated. To achieve this, we take the portion of the CNN feature map that corresponds to each region proposal (it will always have $c$ channels and its heigh and width depends on the region proposal) and we pass it through the Region of Interest (RoI) pooling layer, outputting features of shape $c\times h_2 \times w_2$. We concatenate all this outputs and we finally have a $n\times c\times h_2\times w_2$ tensor. 
+\item Using a fully connected layer, transform the concatenated features into an output of shape $n\times d$ (note that $d=c\cdot h_2\cdot w_2$) and predict the class and bounding box for each of the $n$ region proposals.
+\item Translate the predicted bounding box coordinates to the original image.
+\item Select a confidence threshold (for example, only consider region proposals with predicted class with probability greater or equal than 0.5) and use NMS to output the final predictions.
+\end{enumerate}
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=1.1]{images/fastrcnn}
+\caption{Fast R-CNN algorithm.}
+\label{fastrcnn}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.05]{images/roi}
+\caption{RoI pooling using the maximum as aggregation function.}
+\label{roi}
+\end{figure}
+
+The RoI pooling is a layer that transforms all region proposal into the same shape. If we want a shape $h\times w$ and the region proposal has a shape of $H\times W$, then we will divide the region proposal into a grid of cells with shape $\lceil H/h \rceil \times \lceil W/w \rceil$. Finally, an aggregation function can be used for the output, like max or mean. For example, if the region proposal has a shape of $3\times 3$ and we want a shape of $2\times 2$, then we will divide the region proposal into a grid of cells $\lceil 3/2 \rceil\times \lceil 3/2\rceil=2\times 2$. Note that in general most cells will be $2\times 2$, but near the edges the size can be smaller. This example is represented in Figure \ref{roi}.
+
+
+\section{Faster R-CNNs}
+
+To be more accurate in object detection, the fast R-CNN model usually has to generate a lot of region proposals in selective search. To reduce region proposals without loss of accuracy, the \textbf{Faster Region-based Convolutional Neural Networks (Faster R-CNNs)} proposes to replace selective search with a \textbf{region proposal network} (steps 2, 3, 4 and 5 of the algorithm). The idea here is to try to ``learn'' the region proposals we need instead of just using the selective search.
+
+The algorithm is the following and an schema is shown in Figure \ref{fasterrcnn}:
+\begin{enumerate}
+\item Use a CNN to extract the feature map of the input.
+\item Apply another convolution to the feature map.
+\item Centered on each pixel of the feature maps, generate multiple anchor boxes of different scales and aspect ratios and label them.
+\item Using the feature map of the convolution corresponding to each anchor box, predict the binary class (background or objects) and bounding box for each anchor box.
+\item Consider those predicted bounding boxes whose predicted classes are objects. Remove overlapped results using NMS. The remaining predicted bounding boxes for objects are the region proposals required by the region of interest pooling layer.
+\item We take the portion of the CNN feature map that corresponds to each bounding box, pass it through the RoI pooling layer so that they are all the same size and they are concatenated. Let's suppose there are $n$ bounding boxes left, that the CNN feature map has $c$ channels and the desired height and width of the transformed features are $h_2$ and $w_2$, respectively. We finally have a $n\times c\times h_2\times w_2$ tensor. 
+\item Using a fully connected layer, transform the concatenated features into an output of shape $n\times d$ (note that $d=c\cdot h_2\cdot w_2$) and predict the class and bounding box for each of the $n$ region proposals.
+\item Translate the predicted bounding box coordinates to the original image.
+\item Select a confidence threshold (for example, only consider region proposals with predicted class with probability greater or equal than 0.5) and use NMS to output the final predictions.
+\end{enumerate}
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=1.1]{images/fasterrcnn}
+\caption{Faster R-CNN algorithm.}
+\label{fasterrcnn}
+\end{figure}
+
+It is worth noting that, as part of the faster R-CNN model, the region proposal network (steps 2, 3, 4 and 5) is jointly trained with the rest of the model. In other words, the objective function of the faster R-CNN includes not only the class and bounding box prediction in object detection, but also the binary class and bounding box prediction of anchor boxes in the region proposal network. As a result of the end-to-end training, the region proposal network learns how to generate high-quality region proposals, so as to stay accurate in object detection with a reduced number of region proposals that are learned from data.
+
+To end up with this section, Table \ref{rcnn_comparison} compares the different architectures of the R-CNN for a typical computer vision dataset.
+
+\begin{table}[h!]
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{}               & \textbf{R-CNN} & \textbf{Fast R-CNN} & \textbf{Faster R-CNN} \\ \hline
+\textbf{Test time per image} & 50 seconds      & 2 seconds            & 0.2 seconds           \\ \hline
+\textbf{Speed-up}           & 1x              & 25x                  & 250x                  \\ \hline
+\textbf{mAP (VOC 2007)}     & 66.0\%          & 66.9\%               & 66.9\%                \\ \hline
+\end{tabular}
+\caption{Comparison between R-CNN, Fast R-CNN, and Faster R-CNN.}
+\label{rcnn_comparison}
+\end{table}
+
+\textbf{Note}: This family of models (R-CNN, Fast R-CNN and Faster R-CNN) uses Cross Entropy (or Binary Cross Entropy) for the classification loss and $L_1$ or $L_2$ loss for the predicted coordinates of the bounding box.
+
+
+\section{Single Stage Object Detection}
+
+\textbf{Two-stage detectors} (such as R-CNN, Fast R-CNN, and Faster R-CNN) work in two phases: first, they generate a set of regions of interest or proposals (region proposals) that likely contain objects, and in a second stage, they refine these proposals and classify them into the appropriate categories. This approach is typically more accurate because it spends more time filtering and fine-tuning the detections, but it is also slower due to the two-stage processing.
+
+In contrast, \textbf{single-stage detectors} (such as YOLO and SSD) perform detection and classification in a single pass of the network. They divide the image into a grid and directly predict the classes and coordinates of objects in each cell, without an explicit proposal generation step. This makes them much faster and suitable for real-time applications, although they typically had lower accuracy than two-stage models (something recent versions have significantly reduced).
+
+\subsection{YOLO}
+
+\textbf{YOLO} is the most famous single-stage detector. It is incredibly fast: can proccess 45 frames per second. It uses a CNN and then a MLP. The network uses features from the entire image to predict each bounding box. It also predicts all bounding boxes across all classes for an image simultaneously. This means the network reasons globally about the full image and all the objects in the image.
+
+The \textbf{algorithm} is the following:
+\begin{enumerate}
+\item The first step starts by dividing the original image into $S\times S$ grid cells of equal shape. If the center of an object falls into a grid cell, that grid cell is responsible for detecting that object.
+\item Each grid cell predicts $B$ bounding boxes (typically $B=2$). In particular, the prediction is $$Y=(p, x, y, w, h),$$ where $p$ is the probability that the grid contains an object, $(x, y)$ is the center of the bounding box and $(w, h)$ its width and height.
+\item In addition to outputting bounding boxes and confidence scores, each cell predicts the class of the object. This class prediction is represented by a one-hot vector of length $C$, the number of classes in the dataset: $(c_1, \ldots, c_C)$. However, it is important to note that while each cell may predict any number of bounding boxes and confidence scores for those boxes, it only predicts one class. This is a limitation of the YOLO algorithm itself, and if there are multiple objects of different classes in one grid cell, the algorithm will fail to classify both correctly.
+\item The output of the network is a tensor of shape $S\times S\times (5B+C)$.
+\item Select a confidence threshold (for example, only consider region proposals with predicted class with probability greater or equal than 0.5) and use NMS to output the final predictions.
+\end{enumerate}
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.48]{images/ggg.excalidraw.png}
+\caption{Example of a prediction where $B=2$, $S=5$ and there are two classes: player (red bounding boxes) and ball (black bounding boxes). The grid is composed by the blue squares. Only the output for three grid cells (marked with arrows) is shown and the coordinates are relative to the hole image, not to each grid cell.}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=1]{images/yolo}
+\caption{The architecture of YOLO.}
+\label{arch_yolo}
+\end{figure}
+
+The \textbf{architecture} of YOLO is shown in Figure \ref{arch_yolo}. The initial convolutional layers of the network extract features from the image while the fully connected layers predict the output probabilities and coordinates. Note that the output of the last fully connected layer must be $S\cdot S\cdot (5B+C)$ and then it must be reshaped to give the output the correct form, which is $S\times S\times (5B+C)$. The network architecture is inspired by the GoogLeNet model for image classification. The network has 24 convolutional layers followed by 2 fully connected layers. Instead of the inception modules used by GoogLeNet, it simply uses $1\times 1$ reduction layers followed by $3\times 3$ convolutional layers. The final output of our network is a $S\times S\times (5B+C)$ tensor of predictions. In the original paper they used $S=7$, $B=2$ and there were 20 classes ($20+5\cdot 2=30$). A linear activation function for the final layer and all other layers a Leaky ReLU. Note that, in general, $S$, $B$ and the architecture of the CNN and the FC network can be changed.
+
+In the \textbf{training} there are many considerations:
+\begin{itemize}
+\item They optimize sum-squared error because it is easy to optimize. However it does not perfectly align with the goal of maximizing average precision. It weights localization error equally with classification error, which may not be ideal.
+\item Also, in every image many grid cells do not contain any object. This pushes the ``confidence'' scores of those cells towards zero, often overpowering the gradient from cells that do contain objects. This can lead to model instability, causing training to diverge early on. To remedy this, they increase the loss from bounding box coordinate predictions and decrease the loss from confidence predictions for boxes that do not contain objects. They use two parameters, $\lambda_\text{coord}$ and $\lambda_\text{noobj}$ to accomplish this. In particular, they used $\lambda_\text{coord}=5$ and $\lambda_\text{noobj}=0.5$.
+\item Sum-squared error also equally weights errors in large boxes and small boxes. The error metric should reflect that small deviations in large boxes matter less than in small boxes. To partially address this, they predict the square root of the bounding box width and height instead of the width and height directly.
+\end{itemize}
+
+Taking this into account, we will use the following notation:
+\begin{itemize}
+\item We will denote by $\mathds{1}_{ij}^\text{obj}$ that the $j$-th bounding box of cell $i$ is responsible for predicting an object. A bounding box of a cell is responsible for predicting an object if it is the one with the highest IoU with the ground truth bounding box.
+
+\item We will denote by $\mathds{1}_i^\text{obj}$ that the cell $i$ contains an object of any class.
+
+\item We will denote by $\mathds{1}_{ij}^\text{noobj}$ that the $j$-th bounding box is responsible for predicting that there is not an object in that cell. Note that $\mathds{1}_{ij}^\text{noobj} = 1 - \mathds{1}_{i}^\text{obj} ~ \forall j=1, \ldots, B$, as if there is not an object in a cell, the $B$ predicted bounding boxes must say that there is not an object in the cell.
+\end{itemize}
+
+It is important to remark that when predicting there is an object, in each chell we just take into account one of the $B$ predicted bounding boxes, but when predicting there is not an object, we take into account all $B$ predicted bounding boxes. Other interesting comment is that by making predicted bounding boxes of cells responsible for different objects, this leads to specialization between the bounding box predictors. Each predictor gets better at predicting certain sizes, aspect ratios, or classes of object, improving overall recall.
+
+With all these considerations, we are ready to define the \textbf{loss function}:
+$$\mathcal{L} = \mathcal{L}_\text{BB} + \mathcal{L}_\text{O} + \mathcal{L}_\text{NO} + \mathcal{L}_\text{C},$$
+where
+$$\mathcal{L}_\text{BB}=\lambda_\text{coord}\sum_{i=1}^{S^2}\sum_{j=1}^B \mathds{1}_{ij}^\text{obj}\left(\left(x_i-\hat{x}_i\right)^2 + \left(y_i-\hat{y}_i\right)^2 +\left(\sqrt{w_i}-\sqrt{\hat{w}_i}\right)^2 +\left(\sqrt{h_i}-\sqrt{\hat{h}_i}\right)^2\right)$$
+represents the loss associated with the predicted bounding boxes,
+$$\mathcal{L}_\text{O}=\sum_{i=1}^{S^2}\sum_{j=1}^B \mathds{1}_{ij}^\text{obj}\left(C_i-\hat{C}_i\right)^2$$
+represents the loss associated with the prediction of a bounding box containing an object,
+$$\mathcal{L}_\text{NO}=\lambda_\text{noobj}\sum_{i=1}^{S^2}\sum_{j=1}^B \mathds{1}_{ij}^\text{noobj}\left(C_i-\hat{C}_i\right)^2 = \lambda_\text{noobj}\sum_{i=1}^{S^2}\sum_{j=1}^B \left(1-\mathds{1}_{i}^\text{obj}\right)\left(C_i-\hat{C}_i\right)^2$$
+represents the loss associated with the prediction of a bounding box not containing an object, and
+$$\mathcal{L}_\text{C}=\sum_{i=1}^{S^2}\mathds{1}_i^\text{obj}\sum_{c=1}^n\left(p_i(c)-\hat{p}_i(c)\right)^2$$
+represents the loss associated with the predicted class for each cell of the grid. Note that in this last term we sum over all cells, not over all bounding boxes of all cells.
+
+The main \textbf{limitations} of YOLO are:
+\begin{itemize}
+\item If there are multiple objects of different classes in one grid cell, the algorithm will fail to classify them correctly, because it can only obtain bounding boxes for one class.
+\item Even if there are multiple objects of the same class, the network can detect at most $B$ of them. The model struggles with small objects that appear in groups, such as flocks of birds.
+\item Although the square root is used in the loss function, it treats errors similarly in small bounding boxes versus large bounding boxes. A small error in a large box is generally benign but a small error in a small box has a much greater effect on IoU.
+\end{itemize}
+
+\section{Exercises}
+
+\setcounter{question}{0}
+
+\begin{question}
+Train a model to detect a single object using the procedure described in the first section. You can download it from internet or create it yourself. For example, you can create a small custom dataset to detect, for example, your shoes in photos.
+\end{question}
+
+\begin{question}
+Create a function that generates $c$ random bounding boxes for each pixel in an image. Create also a function to visualize it.
+\end{question}
+
+\begin{question}
+Create a function to calculate the IoU for two given bounding boxes. Include a parameter to differentiate between the two representations that a bounding box can have (described in the first section).
+\end{question}
+
+\begin{question}
+Create a function that performs NMS given a list of bounding boxes and a threshold $\varepsilon$.
+\end{question}
+
+\begin{question}
+Create a function to calculate the mAP given the predicted bounding boxes, true bounding boxes and a threshold IoU to consider a prediction as correct.
+\end{question}
+
+\begin{question}
+Create a function to generate anchor boxes for an image given a list of scales and ratios.
+\end{question}
+
+\begin{question}
+Propose different architectures than the used ones in the original papers for R-CNNs, Fast R-CNNs and Faster R-CNNs. For example, as commented before, in Fast R-CNNs a Random Forest Regressor could be used instead of a linear regression.
+\end{question}
+
+\begin{question}
+Create a function to perform RoI pooling on a image to go from shape $C\times H\times W$ to shape $C\times h\times w$.
+\end{question}
+
+\begin{question}
+Discuss some advantages and disadvantages of single-stage detectors versus two-stage detectors.
+\end{question}

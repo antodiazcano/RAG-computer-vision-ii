@@ -139,20 +139,41 @@ class TestRetrieveFromVectorDb:
 class TestCreatePrompt:
     """Tests for the _create_prompt function."""
 
-    def test_contains_all_parts(self) -> None:
-        """Checks that the prompt includes the system prompt, context, and question."""
-        prompt = _create_prompt("What is CV?", "Computer vision is...")
+    def test_contains_context_and_question(self) -> None:
+        """Checks that the last message includes context and question."""
+        contents = _create_prompt("What is CV?", "Computer vision is...")
 
-        assert config.chat_model.system_prompt in prompt
-        assert "CONTEXT:\nComputer vision is..." in prompt
-        assert "QUESTION: What is CV?" in prompt
-        assert prompt.endswith("ANSWER:")
+        last_text = contents[-1].parts[0].text
+        assert "CONTEXT:\nComputer vision is..." in last_text
+        assert "QUESTION: What is CV?" in last_text
 
     def test_empty_context(self) -> None:
         """Checks that an empty context string is handled correctly."""
-        prompt = _create_prompt("question", "")
+        contents = _create_prompt("question", "")
 
-        assert "CONTEXT:\n\n" in prompt
+        last_text = contents[-1].parts[0].text
+        assert "CONTEXT:\n\n" in last_text
+
+    def test_no_history(self) -> None:
+        """Checks that without history only the current question is included."""
+        contents = _create_prompt("q", "ctx")
+
+        assert len(contents) == 1
+        assert contents[0].role == "user"
+
+    def test_with_history(self) -> None:
+        """Checks that chat history is prepended as user/model turns."""
+        history = [
+            {"role": "user", "content": "hi"},
+            {"role": "assistant", "content": "hello"},
+        ]
+        contents = _create_prompt("q", "ctx", chat_history=history)
+
+        assert len(contents) == 3
+        assert contents[0].role == "user"
+        assert contents[0].parts[0].text == "hi"
+        assert contents[1].role == "model"
+        assert contents[1].parts[0].text == "hello"
 
 
 class TestGenerateAnswer:
@@ -173,16 +194,18 @@ class TestGenerateAnswer:
         """Checks that the function returns a string answer and the retrieved chunks."""
         match = _make_match("text", "doc.pdf", 1, 5, "pdf", 0.9)
         PINECONE_IDX.query.return_value = MagicMock(matches=[match])
+        GEN_AI_CLIENT.models.generate_content.return_value = MagicMock(text="answer")
 
         answer, chunks = generate_answer("question")
 
-        assert isinstance(answer, str)
+        assert answer == "answer"
         assert len(chunks) == 1
         assert chunks[0]["source"] == "doc.pdf"
 
     def test_passes_top_k(self) -> None:
         """Checks that the top_k parameter is forwarded to the vector db query."""
         PINECONE_IDX.query.return_value = MagicMock(matches=[])
+        GEN_AI_CLIENT.models.generate_content.return_value = MagicMock(text="ok")
 
         generate_answer("q", top_k=5)
 
@@ -191,8 +214,20 @@ class TestGenerateAnswer:
     def test_empty_retrieval(self) -> None:
         """Checks that an empty retrieval still returns a valid answer string."""
         PINECONE_IDX.query.return_value = MagicMock(matches=[])
+        GEN_AI_CLIENT.models.generate_content.return_value = MagicMock(text="ok")
 
         answer, chunks = generate_answer("q")
 
         assert chunks == []
         assert isinstance(answer, str)
+
+    def test_passes_chat_history(self) -> None:
+        """Checks that chat_history is forwarded to generate_content."""
+        PINECONE_IDX.query.return_value = MagicMock(matches=[])
+        GEN_AI_CLIENT.models.generate_content.return_value = MagicMock(text="ok")
+        history = [{"role": "user", "content": "hi"}]
+
+        generate_answer("q", chat_history=history)
+
+        contents = GEN_AI_CLIENT.models.generate_content.call_args.kwargs["contents"]
+        assert len(contents) == 2  # 1 history + 1 current question

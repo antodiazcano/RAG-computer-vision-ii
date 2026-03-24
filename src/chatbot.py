@@ -73,26 +73,42 @@ def _retrieve_from_vector_db(
     ]
 
 
-def _create_prompt(question: str, context: str) -> str:
+def _create_prompt(
+    question: str, context: str, chat_history: list[dict[str, str]] | None = None
+) -> list[types.Content]:
     """
     Creates a prompt for the chatbot to answer.
 
     Args:
         question: Question of the user.
         context: Retrieved context from the vector db.
+        chat_history: Previous conversation turns with "role" and "content" keys.
 
     Returns:
-        Created prompt.
+        List of Content objects representing the conversation.
     """
 
-    return (
-        f"{config.chat_model.system_prompt}\n\nCONTEXT:\n{context}\n\n"
-        f"QUESTION: {question}\n\nANSWER:"
+    contents: list[types.Content] = []
+    for msg in chat_history or []:
+        role = "user" if msg["role"] == "user" else "model"
+        contents.append(
+            types.Content(role=role, parts=[types.Part(text=msg["content"])])
+        )
+
+    contents.append(
+        types.Content(
+            role="user",
+            parts=[types.Part(text=f"CONTEXT:\n{context}\n\nQUESTION: {question}")],
+        )
     )
+
+    return contents
 
 
 def generate_answer(
-    question: str, top_k: int = 3
+    question: str,
+    top_k: int = 3,
+    chat_history: list[dict[str, str]] | None = None,
 ) -> tuple[str, list[dict[str, int | str | float]]]:
     """
     Generates an answer to the question of the user using RAG.
@@ -100,6 +116,7 @@ def generate_answer(
     Args:
         question: Question of the user.
         top_k: Number of chunks to retrieve.
+        chat_history: Previous conversation turns with "role" and "content" keys.
 
     Returns:
         Response of the model and chunks retrieved.
@@ -107,15 +124,19 @@ def generate_answer(
 
     chunks = _retrieve_from_vector_db(question, top_k=top_k)
     context = "\n".join(
-        f"[{c['source']} - Page {c['page']}]: {c['text']}" for c in chunks
+        f"[{c['source']} - Section {c['page']}]: {c['text']}" for c in chunks
     )
-    prompt = _create_prompt(question, context)
+    contents = _create_prompt(question, context, chat_history)
 
-    dummy = True
+    dummy = False
 
     if not dummy:
         response = GEN_AI_CLIENT.models.generate_content(
-            model=config.chat_model.chat_model, contents=prompt
+            model=config.chat_model.chat_model,
+            contents=contents,  # type: ignore
+            config=types.GenerateContentConfig(
+                system_instruction=config.chat_model.system_prompt,
+            ),
         )
     else:
         return "aaa", chunks

@@ -1,0 +1,480 @@
+\chapter{Semantic Segmentation and Style Transfer}
+
+\section{Semantic Segmentation}
+
+The problem of \textbf{semantic segmentation} focuses on how to divide an image into regions belonging to different semantic classes. Different from object detection, semantic segmentation recognizes and understands what are in images in pixel level, as labeling and prediction of semantic regions are in pixel level. Figure \ref{semseg} shows an example of semantic segmentation. Compared with in object detection, the pixel-level borders labeled in semantic segmentation are obviously more fine-grained.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.62]{images/semseg}
+\caption{Semantic segmentation of two different images.}
+\label{semseg}
+\end{figure}
+
+\subsection{Naive Approach}
+
+A natural and naive approach is to use a \textbf{sliding window}. We would divide the image into a grid of patches, apply a CNN to each one and classify the center pixel of each patch. Putting all the pixels together, we would obtain a new image with all the pixels classified. However, this approach is not very practical because many forward passes would have to be done and that is unefficient. Also, we would not reuse shared features between overlapping patches.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.9]{images/naivesem}
+\caption{Naive approach for semantic segmentation.}
+\end{figure}
+
+\subsection{Transposed Convolution}
+
+The CNN layers, such as convolutional layers and pooling layers, typically reduce (downsample) the spatial dimensions (height and width) of the input, or keep them unchanged. In semantic segmentation that classifies at pixel-level, it will be convenient if the spatial dimensions of the input and output are the same. By doing this, the channel dimension at one output pixel can hold the classification results for the input pixel at the same spatial position.
+
+Figure \ref{tc} shows an example. We suppose there are two classes, and we want to classify all pixels. Let's focus on the pixel of the upper right corner. If we are able to obtain the same spatial dimension on the output, we can force the output of the CNN to have two channels, and we can apply softmax along the channels dimension to interpret the value of the upper right corner of each channel to be the probability of that pixel belonging to the corresponding class. The same logic can be applied to all pixels.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.35]{images/tc}
+    \caption{Example of classifying one pixel. Note that $0.61+0.39=1$.}
+    \label{tc}
+\end{figure}
+
+To achieve this, especially after the spatial dimensions are reduced by CNN layers, we can use another type of CNN layers that can \textbf{increase (upsample)} the spatial dimensions of intermediate feature maps: \textbf{transposed convolutions}.
+
+\subsubsection{Basic Operation}
+
+Ignoring channels for now, let's begin with the basic transposed convolution operation with stride of 1 and no padding. Suppose that we are given a $n_h\times n_w$ input tensor and a $k_h\times k_w$ kernel. Sliding the kernel window with stride of 1 for $n_w$ times in each row and $n_h$ times in each column yields a total of $n_h\cdot n_w$ intermediate results. Each intermediate result is a $(n_h+k_h-1)\times(n_w+k_w-1)$ tensor initialized as zeros. To compute each intermediate tensor, each element in the input tensor is multiplied by the kernel so that the resulting $k_w\times k_w$ tensor replaces a portion in each intermediate tensor. Note that the position of the replaced portion in each intermediate tensor corresponds to the position of the element in the input tensor used for the computation. In the end, all the intermediate results are summed over to produce the output.
+
+As an example, we will illustrate how transposed convolution with a $2\times 2$ kernel is computed for a $2\times 2$ input tensor. Let's say the input and the kernel are respectively $$\begin{pmatrix}
+0 & 1 \\ 2 & 3
+\end{pmatrix} \text{ and } \begin{pmatrix}
+0 & 1 \\ 2 & 3
+\end{pmatrix}.$$
+Then the transposed convolution (denoted as $*^{-1}$) is
+$$
+\begin{pmatrix}
+0 & 1 \\ 2 & 3
+\end{pmatrix} *^{-1} \begin{pmatrix}
+0 & 1 \\ 2 & 3
+\end{pmatrix}
+=
+0 
+\begin{pmatrix}
+0 & 1 & - \\
+2 & 3 & - \\
+- & - & - \\
+\end{pmatrix} +
+1 
+\begin{pmatrix}
+- & 0 & 1 \\
+- & 2 & 3 \\
+- & - & - \\
+\end{pmatrix} +
+2 
+\begin{pmatrix}
+- & - & - \\
+0 & 1 & - \\
+2 & 3 & - \\
+\end{pmatrix} +
+3
+\begin{pmatrix}
+- & - & - \\
+- & 0 & 1 \\
+- & 2 & 3 \\
+\end{pmatrix}
+$$
+$$
+=\begin{pmatrix}
+0 & 0 & - \\
+0 & 0 & - \\
+- & - & - \\
+\end{pmatrix} +
+\begin{pmatrix}
+- & 0 & 1 \\
+- & 2 & 3 \\
+- & - & - \\
+\end{pmatrix} +
+\begin{pmatrix}
+- & - & - \\
+0 & 2 & - \\
+4 & 6 & - \\
+\end{pmatrix} +
+\begin{pmatrix}
+- & - & - \\
+- & 0 & 3 \\
+- & 6 & 9 \\
+\end{pmatrix} =
+\begin{pmatrix}
+0 & 0 & 1 \\
+0 & 4 & 6 \\
+4 & 12 & 9
+\end{pmatrix}.
+$$
+
+\subsubsection{Padding, Strides and Multiple Channels}
+
+Different from in the regular convolution where \textbf{padding} is applied to input, it is \textbf{applied to output} in the transposed convolution. For example, when specifying the padding number on either side of the height and width as 1, the first and last rows and columns will be removed from the transposed convolution output. In general, if the padding is $p$, then $2p$ (first and last $p$) rows and columns will be removed. To see a concrete application, if we use padding $1$ to the previous example, we remove first and last rows and first and last columns. Therefore, the output of the transposed convolution will be
+$$
+\begin{pmatrix}
+\cancel{0} & \cancel{0} & \cancel{1} \\
+\cancel{0} & 4 & \cancel{6} \\
+\cancel{4} & \cancel{12} & \cancel{9}
+\end{pmatrix} =
+\begin{pmatrix}
+    4
+\end{pmatrix}.
+$$
+
+In the transposed convolution, \textbf{strides are specified for intermediate results (thus output)}, not for input. Now, for stride $s$, each intermediate result is a $$[(n_h-1)s+(k_h-1)+1]\times[(n_w-1)s+(k_w-1)-1]$$ tensor initialized as zeros. Note that this dimensions are true only if padding is equal to zero. If we use the same example as before but with stride 2, then
+$$
+\begin{pmatrix}
+0 & 1 \\ 2 & 3
+\end{pmatrix} *^{-1} \begin{pmatrix}
+0 & 1 \\ 2 & 3
+\end{pmatrix}
+=
+0 
+\begin{pmatrix}
+0 & 1 & - & - \\
+2 & 3 & - & - \\
+- & - & - & - \\
+- & - & - & - \\
+\end{pmatrix} +
+1 
+\begin{pmatrix}
+- & - & 0 & 1 \\
+- & - & 2 & 3 \\
+- & - & - & - \\
+- & - & - & - \\
+\end{pmatrix} +
+2 
+\begin{pmatrix}
+- & - & - & - \\
+- & - & - & - \\
+0 & 1 & - & - \\
+2 & 3 & - & - \\
+\end{pmatrix}
+$$
+$$
++3
+\begin{pmatrix}
+- & - & - & - \\
+- & - & - & - \\
+- & - & 0 & 1 \\
+- & - & 2 & 3 \\
+\end{pmatrix}
+=
+\begin{pmatrix}
+0 & 0 & 0 & 1 \\
+0 & 0 & 1 & 3 \\
+0 & 2 & 0 & 3 \\
+4 & 6 & 6 & 9 \\
+\end{pmatrix}.
+$$
+
+For multiple input and output \textbf{channels}, the transposed convolution works in the \textbf{same way as the regular convolution}. Suppose that the input has $c_i$ channels, and that the transposed convolution assigns a $k_h\times k_w$ kernel tensor to each input channel. When multiple output channels are specified, we will have a $c_i\times k_h\times k_w$ kernel for each output channel.
+
+\subsubsection{Initializing Transposed Convolutional Layers}
+
+We could initialize transposed convolutional layers randomly, but there are more effective ways. Most of these methods are traditional methods for upsampling images, for example:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{images/upmethods}
+\caption{Example of bed of nails and nearest neighbor.}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=1.75]{images/maxunp}
+\caption{Example of max unpooling.}
+\end{figure}
+\begin{itemize}
+\item \textbf{Bed of Nails}: Fills with zeros the new generated pixels.
+\item \textbf{Nearest Neighbor}: Fills with the value of the nearest neighbor the new generated pixels.
+\item \textbf{Bilinear Interpolation}: It is a more advanced but also complicated method. You can find more information about it in this \href{https://www.geeksforgeeks.org/maths/what-is-bilinear-interpolation/}{link}.
+\item \textbf{Max Unpooling}: It takes a value and places it at the original position where the maximum was during pooling, padding the remaining positions with zeros. It needs to know where each maximum was in the original input. Therefore, during max pooling, the indices of the maximum positions are usually saved and then those indices are used to correctly locate the values during expansion.
+\end{itemize}
+
+The idea is to initialize the weights of the kernel in such a way that we obtain the same output as if we did an upsampling method. For example, if we choose bed of nails and we want to upsample from $2\times 2$ to $4\times 4$, we would use a stride of $2$ and the initial weights of the kernel would be $$\begin{pmatrix}
+    1 & 0 \\ 0 & 0
+\end{pmatrix}.$$ Also, if we choose nearest neighbor we would use a stride of $2$ and the initial weights of the kernel would be $$\begin{pmatrix}
+    1 & 1 \\ 1 & 1
+\end{pmatrix}.$$
+Check exercises \ref{ex_proof_1} and \ref{ex_proof_2} to get a better understanding of the logic behind this.
+
+
+
+\subsection{Fully Convolutional Networks}
+
+A \textbf{fully convolutional network (FCN)} uses a convolutional neural network to transform image pixels to pixel classes. First, it applies a CNN to reduce the height and width of intermediate feature maps, then a $1\times 1$ convolution with as many output channels as classes there are (each channel corresponds to a class), and finally uses transposed convolutions to go back to the same shape of the original image. Each pixel is assigned a value in each channel that corresponds to the probability of that pixel belonging to the class associated to that channel. As a result, the classification output and the input image have a one-to-one correspondence in pixel level. This is the idea previously seen in Figure \ref{tc}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.71]{images/fcn}
+\caption{Fully convolutional network.}
+\end{figure}
+
+Initially, the convolutions used a $1\times 1$ kernel or padding to not modify the dimensions of the image and finally a convolutional layer with as many channels as classes there were. However, this was unefficient, and therefore the dimensions were reduced at first and then upsampled to the original ones using the transposed convolutions.
+
+In both approaches the loss function used to train is the cross entropy and when using for inference each channel has to be mapped to the color of its class.
+
+\subsection{U-Net}
+
+A particular case of the fully convolutional networks is the \textbf{U-Net}, shown in Figure \ref{unet}, whose architecture is designed for image segmentation tasks, especially in the biomedical field. Its structure is U-shaped because it combines a contraction path (encoder) and an expansion path (decoder). In the contraction phase, the network applies successive convolutions and max pooling operations to capture features and progressively reduce the spatial resolution of the image, thus extracting increasingly abstract representations. In the expansion phase, it uses transposed convolutions to increase spatial resolution to the original one and reconstruct the segmentation map.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.42]{images/unet}
+\caption{Architecture of the U-Net. The dimensions and number of layers may vary, but the U structure and the skip connections are always the same.}
+\label{unet}
+\end{figure}
+
+A key feature of U-Net is \textbf{skip connections} (as in the ResNet model), which link the encoder layers with the corresponding decoder layers. In practice, this is implemented by concatenating the activation maps of the encoder with those of the decoder at the same resolution level. This way, the decoder can take advantage of both the global information extracted by the encoder and the original local details, allowing for the reconstruction of accurate segmentation maps with well-defined contours. Thanks to this architecture, U-Net can produce accurate segmentations even with limited training data.
+
+\section{Style Transfer}
+
+We will leverage layerwise representations of a CNN to automatically apply the style of one image to another image, i.e., \textbf{style transfer}. This task needs two input images: one is the \textbf{content image} and the other is the \textbf{style image}. We will use neural networks to modify the content image to make it close to the style image in style. For example, in Figure \ref{st} you can see how the content of the Mona Lisa is combined with the style of a Picasso-style painting to create a new synthesized version.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.7]{images/st}
+\caption{Given content and style images, style transfer outputs a synthesized image.}
+\label{st}
+\end{figure}
+
+\subsection{Method}
+
+First, we initialize the synthesized image, for example, into the content image. The synthesized image is the only variable that needs to be updated during the style transfer process (content and style image are always the same), i.e., \textbf{the model parameters to be updated during training are the pixels of the synthesized image}. Then we choose a pretrained CNN to extract image features and freeze its model parameters during training. This deep CNN uses multiple layers to extract hierarchical features for images. We can choose the output of some of these layers as content features or style features. Take Figure \ref{st_created} as an example. The pretrained neural network here has 3 convolutional layers, where the second layer outputs the content features, and the first and third layers output the style features. Note that the pretrained network is the same for content, synthesized and style images and its parameters will be freezed, as the only parameters to be updated are the pixels of the synthesized image, which do not belong to the pretrained network.
+
+Next, we calculate the loss function of style transfer through forward propagation (direction of solid arrows), and update the model parameters (the synthesized image for output) through backpropagation (direction of dashed arrows). The loss function commonly used in style transfer consists of three parts:
+\begin{itemize}
+\item \textbf{Content loss}: Makes the synthesized image and the content image close in content features
+\item \textbf{Style loss}: Makes the synthesized image and style image close in style features.
+\item \textbf{Total variation loss}: Helps to reduce the noise in the synthesized image.
+\end{itemize}
+Finally, when the model training is over, we output the model parameters of the style transfer to generate the final synthesized image.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.8]{images/st_created}
+\caption{CNN-based style transfer process. Solid lines show the direction of forward propagation and dotted lines show backward propagation.}
+\label{st_created}
+\end{figure}
+
+\subsection{Extracting Features}
+
+In order to extract the content features and style features of the image, we can select the output of certain layers in the network. Generally speaking, \textbf{the closer to the input layer, the easier to extract details of the image, and the closer to the output layer, the easier to extract the global information of the image} (an example is shown in Figure \ref{features}). In order to avoid excessively retaining the details of the content image in the synthesized image,  usually a layer that is closer to the output is chosen as the \textbf{content layer} to output the content features of the image. It is also common to select the output of different layers for extracting local and global style features. These layers are also called \textbf{style layers}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.28]{images/features}
+\caption{Example of a CNN trained to classify emotions in faces. The closer to the input layer, the easier to extract details of the image, and the closer to the output layer, the easier to extract the global information of the image.}
+\label{features}
+\end{figure}
+
+Since there is no need to update the model parameters of the pretrained network during training, \textbf{we can extract the content and the style features even before the training starts}, and therefore during training we only need to perform forward passes in the synthesized image, not in the content or style images.
+
+\subsection{Defining the Loss Function}
+
+Now we will describe the loss function for style transfer. The loss function consists of the content loss, style loss, and total variation loss. We will denote the synthesized image, the content image and the style image by $x$, $x^C$ and $x^S$, respectively. We will also denote by $n_C$ the number of feature maps extracted from the content image and by $n_S$ the number of feature maps extracted from the style image. We will denote the height of the feature map of layer $r$ by $H_r$, the width of the feature map of layer $r$ by $W_r$ and the number of channels of the feature map of layer $r$ by $C_r$. Finally, we will denote the feature map of layer $r$ of the pretrained network as $f_r$.
+
+\subsubsection{Content Loss}
+
+The content loss measures the difference in content features between the synthesized image and the content image via the squared loss function:
+
+$$
+\mathcal{L}_\text{C} = \dfrac{1}{n_C}
+\underbrace{\sum_{r=1}^{n_C}}_{\substack{\text{for each} \\ \text{feature map}}}\dfrac{1}{C_rH_rW_r}
+\underbrace{\sum_{c=1}^{C_r}\sum_{i=1}^{H_r}\sum_{j=1}^{W_r}}_{\substack{\text{for each pixel} \\ \text{of that feature map}}}
+\left(f_r\left(x_{ijc}\right)-f_r\left(x^C_{ijc}\right)\right)^2.
+$$
+
+\subsubsection{Style Loss}
+
+Style loss, similar to content loss, also uses the squared loss function to measure the difference in style between the synthesized image and the style image. We can transform the feature map of layer $r$ into matrix $\mathbf{X}_r$ with $C_r$ rows and $H_rW_r$ columns. This matrix can be thought of as the concatenation of $C_r$ vectors $\mathbf{x}_1, \ldots, \mathbf{x}_{C_r}$, each of which has a length of $H_rW_r$. Here, vector $\mathbf{x}_i$ represents the style feature of channel $i$ for feature map $r$.
+
+We define the \textbf{Gram matrix} of these vectors $\mathbf{X}_r\left(\mathbf{X}_r\right)^T\in\mathbb{R}^{C_r\times C_r}$, where element $x_{ij}$ in row $i$ and column $j$ is the dot product of vectors $\mathbf{x}_i$ and $\mathbf{x}_j$. It represents the correlation of the style features of channels $i$ and $j$. We use this Gram matrix to represent the style output of any style layer. Note that when the value of $H_rW_r$ is larger, it likely leads to larger values in the Gram matrix (because in the dot product we sum a lot of elements). Note also that the height and width of the Gram matrix are both the number of channels $C_r$. To allow style loss not to be affected by these values, the gram function below divides the Gram matrix by the number of its elements, i.e., $C_rH_rW_r$. Therefore, the style loss is:
+$$\mathcal{L}_\text{S} = \dfrac{1}{n_S} \sum_{r=1}^{n_S}\dfrac{1}{C_rH_rW_r}\sum\left(\mathbf{X}_r\left(\mathbf{X}_r\right)^T-\mathbf{X}_r^S\left(\mathbf{X}_r^S\right)^T\right)^2,$$
+where the second sum means to sum over all elements of the resulting matrix and the exponent of the parenthesis means squaring each element of the subtraction. Here, $\mathbf{X}_r\left(\mathbf{X}_r\right)^T$ refers to the Gram matrix of the synthesized image and $\mathbf{X}_r^S\left(\mathbf{X}_r^S\right)^T$ to the Gram matrix of the style image. A good advise is to precompute the Gram matrix on the style image, because it is always the same, to avoid computing it in each iteration of the training loop.
+
+Now we will show an example of how to compute the Gram matrix. Suppose that the feature map of a layer has $c$ channels, width $w$ and height $h$, and the element $(i, j)$ of channel $k$ is denoted as $x_{kij}$. Then, the matrices of each channel are:
+$$
+\begin{pmatrix}
+x_{111} & \ldots & x_{11w} \\
+\vdots & \ddots & \vdots \\
+x_{1h1} & \ldots & x_{1hw}
+\end{pmatrix}, \ldots,
+\begin{pmatrix}
+x_{c11} & \ldots & x_{c1w} \\
+\vdots & \ddots & \vdots \\
+x_{ch1} & \ldots & x_{chw}
+\end{pmatrix}.
+$$
+If we flatten each matrix and concatenate them as rows:
+$$
+\mathbf{X} =
+\begin{pmatrix}
+x_{111} & \ldots & x_{11w} & \ldots & x_{1h1} & \ldots & x_{1hw} \\
+\vdots & \ddots & \vdots & \ddots & \vdots & \ddots & \vdots \\
+x_{c11} & \ldots & x_{c1w} & \ldots & x_{ch1} & \ldots & x_{chw} \\
+\end{pmatrix} =
+\begin{pmatrix}
+\mathbf{x}_1 \\
+\vdots \\
+\mathbf{x}_c
+\end{pmatrix}.
+$$
+Finally, we can obtain the Gram matrix as:
+$$
+\mathbf{X}\mathbf{X}^T =
+\begin{pmatrix}
+\mathbf{x}_1\cdot \mathbf{x}_1 & \ldots & \mathbf{x}_1\cdot \mathbf{x}_c \\
+\vdots & \ddots & \vdots \\
+\mathbf{x}_c\cdot \mathbf{x}_1 & \ldots & \mathbf{x}_c\cdot \mathbf{x}_c
+\end{pmatrix}.
+$$
+
+\subsubsection{Total Variation Loss}
+
+Sometimes, the learned synthesized image has a lot of high-frequency noise, i.e., particularly bright or dark pixels. One common noise reduction method is total variation denoising. We will assume the synthesized image has $3$ channels and its height and width are $H$ and $W$, respectively. The total variation loss is
+$$\mathcal{L}_\text{V} = \dfrac{1}{2\cdot 3\cdot H\cdot W}\sum_{c=1}^3\sum_{i=1}^{H-1}\sum_{j=1}^{W-1}\left(\left|x_{i, j+1, c}-x_{i, j, c}\right| + \left| x_{i+1, j, c}-x_{i, j, c}\right|\right),$$
+and makes values of neighboring pixels on the synthesized image closer. Note that we also divide by $2$ because in the summation two terms are added.
+
+\subsubsection{Final Loss Function}
+
+The loss function of style transfer is the weighted sum of content loss, style loss, and total variation loss. By adjusting these weight hyperparameters, we can balance among content retention, style transfer, and noise reduction on the synthesized image, as shown in Figure \ref{wloss}. Then, the loss function is:
+$$\mathcal{L}=\alpha\mathcal{L}_\text{C}+\beta\mathcal{L}_\text{S}+\gamma\mathcal{L}_\text{V}.$$
+We can force that $\alpha+\beta+\gamma=1$ to have a sense of what proportion we give to each loss, but this is optional.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.35]{images/wloss}
+\caption{Results of using different weigths in the content and style losses.}
+\label{wloss}
+\end{figure}
+
+\section{Other tasks}
+
+\subsection{Image Segmentation}
+
+\textbf{Image segmentation} divides an image into several constituent regions. The methods for this type of problem usually make use of the correlation between pixels in the image. It does not need label information about image pixels during training, and it cannot guarantee that the segmented regions will have the semantics that we hope to obtain during prediction. In an image with a dog, image segmentation may divide the dog into two regions: one covers the mouth and eyes which are mainly black, and the other covers the rest of the body which is mainly yellow.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.25]{images/image_segm}
+\caption{Example of image segmentation.}
+\end{figure}
+
+\subsection{Instance Segmentation}
+
+\textbf{Instance segmentation} studies how to recognize the pixel-level regions of each object instance in an image. Different from semantic segmentation, instance segmentation needs to distinguish not only semantics, but also different object instances. For example, if there are two dogs in the image, instance segmentation needs to distinguish which of the two dogs a pixel belongs to (dog 1 or dog 2).
+
+\subsection{Panoptic Segmentation}
+
+\textbf{Panoptic Segmentation} is a computer vision technique that combines semantic segmentation and instance segmentation into a single task. Its objective is to assign a label to each pixel in the image, but it also:
+\begin{itemize}
+\item Identifies which object each pixel belongs to (instance-aware) for ``countable'' objects (people, cars, etc.).
+\item Assigns classes without distinguishing between instances for ``non-countable'' or ``stuff'' objects (sky, grass, road, etc.).
+In other words, it tells you what is in each pixel and which instance it belongs to, when applicable.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.45]{images/comparation_segmentation}
+\caption{Comparation between semantic segmentation, instance segmentation and panoptic segmentation.}
+\end{figure}
+
+\subsection{Keypoint Estimation}
+
+\textbf{Keypoint estimation} is a computer vision task that involves detecting keypoints in objects or people within an image. These points are typically important parts or joints that describe the object's structure.
+
+For example, in human poses, keypoints are eyes, shoulders, elbows, wrists, hips, knees, ankles, etc.; in other objects, they can be corners, edges, or points of interest.
+
+The idea is to first detect the object (e.g., the human body) and predict the location of each keypoint as $(x, y)$ coordinates in the image. Finally, and this is optional, we can connect the points with lines to form a skeletal representation. Models such as OpenPose, HRNet, or MediaPipe are used for this task.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.23]{images/keypoint}
+\caption{Example of keypoint estimation.}
+\end{figure}
+
+
+
+\section{Exercises}
+
+\setcounter{question}{0}
+
+\begin{question}
+Write a script to train a semantic segmentation model with the naive approach.
+\end{question}
+
+\begin{question}
+Write the code for a transposed convolution assuming stride is always 1 and padding is always 0.
+\end{question}
+
+\begin{question}
+Complete the code of the previous exercise, now for a general stride and padding.
+\end{question}
+
+\begin{question}
+Write a program that can upsample a image given to a given shape using bed of nails. Hint: you can recursively perform upsamples until the objective shape is achieved.
+\end{question}
+
+\begin{question}
+Repeat the previous exercise with the techniques: nearest neighbor, bilinear interpolation and max unpooling. In max unpooling you must assume the indexes of the maximum values are given as a parameter.
+\end{question}
+
+\begin{question}\label{ex_proof_1}
+Show that if we have an arbitrary $2\times 2$ matrix $M$, let's say
+$$M=\begin{pmatrix}
+    a & b \\
+    c & d
+\end{pmatrix},$$
+and we apply transposed convolution with stride $2$ and kernel
+$$K=\begin{pmatrix}
+    1 & 0 \\
+    0 & 0
+\end{pmatrix},$$
+then we get the same output as if we applied bed of nails.
+\end{question}
+
+\begin{question}\label{ex_proof_2}
+Show that if we have an arbitrary $2\times 2$ matrix $M$, let's say
+$$M=\begin{pmatrix}
+    a & b \\
+    c & d
+\end{pmatrix},$$
+and we apply transposed convolution with stride $2$ and kernel
+$$K=\begin{pmatrix}
+    1 & 1 \\
+    1 & 1
+\end{pmatrix},$$
+then we get the same output as if we applied nearest neighbor.
+\end{question}
+
+\begin{question}
+Create the architecture of a fully convolutional network and check that the shapes when downsampling and upsampling are correct.
+\end{question}
+
+\begin{question}
+Repeat the previous exercise with a U-Net. Hint: be careful with the skip connections!
+\end{question}
+
+\begin{question}
+Search a simple semantic segmentation dataset in internet and train on it one of the models you created in the previous exercises.
+\end{question}
+
+\begin{question}
+Write a program to calculate the Gram matrix for a specific feature map.
+\end{question}
+
+\begin{question}
+Write a program to calculate the content loss, style loss and total variation loss for style transfer.
+\end{question}
+
+\begin{question}
+Train a synthesized image with the content and style images you want.
+\end{question}
+
+\begin{question}
+Repeat the previous exercise with different values for the content and style losses. What do you see?
+\end{question}
+
+\begin{question}
+Research about more tasks that can be done in computer vision, for example dense captioning.
+\end{question}

@@ -16,7 +16,7 @@ if ROOT_DIR not in sys.path:
 
 from src.chatbot import generate_answer
 from src.config import config
-from src.save_docs_to_db import save_all_files
+from src.embed_documents.main import save_all_files
 from src.utils import file_hash, get_gen_ai_client, get_index_vector_db, load_registry
 
 
@@ -125,7 +125,7 @@ st.markdown(
                    background:rgba(63,185,80,.06); }
 
     /* hide Streamlit branding */
-    #MainMenu, footer, header { visibility: hidden; }
+    #MainMenu, footer { visibility: hidden; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -206,8 +206,8 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
     uploaded = st.file_uploader(
-        "Drop PDFs here",
-        type=["pdf"],
+        "Drop files here",
+        type=[ext.lstrip(".") for ext in config.paths.supported_extensions],
         accept_multiple_files=True,
         label_visibility="collapsed",
     )
@@ -230,7 +230,7 @@ with st.sidebar:
     col_a, col_b = st.columns([3, 1])
     run_index = col_a.button("⚙ Index new docs", use_container_width=True)
     if run_index:
-        with st.spinner("Indexing... this may take a while for large PDFs."):
+        with st.spinner("Indexing... this may take a while for large files."):
             save_all_files()
         st.rerun()
 
@@ -291,7 +291,8 @@ for msg in st.session_state.messages:
                     f"color:#e6edf3;white-space:nowrap;overflow:hidden;"
                     f"text-overflow:ellipsis'>{src['source']}</div>"
                     f"<div style='color:#8b949e;font-size:10px;margin:4px 0 8px'>"
-                    f"Page {src['page']} / {src['total_pages']}</div>"
+                    f"{'§' if src.get('doc_type') == 'tex' else 'Page'} "
+                    f"{src['page']} / {src['total_pages']}</div>"
                     f"<div style='background:#21262d;border-radius:3px;height:6px;"
                     f"overflow:hidden'>"
                     f"<div style='width:{score_pct}%;height:100%;"
@@ -309,10 +310,7 @@ if not st.session_state.messages:
         <div style="text-align:center;padding:60px 20px;color:#484f58">
           <div style="font-size:48px;margin-bottom:16px">🔍</div>
           <p style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:#8b949e">
-            Index your documents and start asking questions
-          </p>
-          <p style="font-size:12px;margin-top:8px">
-            Supported sources: PDF. Each answer shows the rendered source page
+            Ask something about the Computer Vision II course!
           </p>
         </div>
         """,
@@ -322,7 +320,7 @@ if not st.session_state.messages:
 
 # Chat input
 
-question = st.chat_input("Ask something about your Computer Vision II course!")
+question = st.chat_input("Ask anything")
 
 if question:
     st.session_state.messages.append(
@@ -331,7 +329,11 @@ if question:
     st.markdown(f"<div class='bubble-user'>🧑 {question}</div>", unsafe_allow_html=True)
 
     with st.spinner("Retrieving & generating..."):
-        answer, chunks = generate_answer(question, top_k=top_k)
+        history = [
+            {"role": m["role"], "content": m["content"]}
+            for m in st.session_state.messages[:-1]  # exclude current question
+        ]
+        answer, chunks = generate_answer(question, top_k=top_k, chat_history=history)
         sources = sorted(chunks, key=lambda x: -x["score"])
 
     st.session_state.messages.append(
