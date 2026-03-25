@@ -6,7 +6,6 @@ import os
 import sys
 
 import streamlit as st
-from google import genai
 from pinecone.db_data.index import Index
 
 
@@ -14,25 +13,13 @@ ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
-from src.chatbot import generate_answer
+from src.chatbot.clients import CHAT_CLIENTS, create_chat_client
+from src.chatbot.generate import generate_answer
 from src.config import config
-from src.embed_documents.main import save_all_files
-from src.utils import file_hash, get_gen_ai_client, get_index_vector_db, load_registry
+from src.utils import file_hash, get_index_vector_db, load_registry
 
 
 # Cached resources
-
-
-@st.cache_resource
-def get_genai_client() -> genai.Client:
-    """
-    Caches the chatbot client.
-
-    Returns:
-        Chatbot client.
-    """
-
-    return get_gen_ai_client()
 
 
 @st.cache_resource
@@ -47,7 +34,6 @@ def get_pinecone_index() -> Index:
     return get_index_vector_db()
 
 
-GEN_AI_CLIENT = get_genai_client()
 PINECONE_IDX = get_pinecone_index()
 
 
@@ -153,14 +139,43 @@ with st.sidebar:
             RAG - Computer Vision II
           </span>
         </div>
-        <div style="margin-bottom:14px">
-          <span class="badge badge-embed">gemini-embedding-2-preview</span>
-          <span class="badge badge-llm">gemini-2.5-flash</span>
-          <span class="badge badge-pine">Pinecone</span>
-        </div>
         """,
         unsafe_allow_html=True,
     )
+
+    # Provider and API key
+    st.markdown(
+        "<p style='font-family:IBM Plex Mono,monospace;font-size:11px;"
+        "color:#8b949e;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px'>"
+        "Chat Model</p>",
+        unsafe_allow_html=True,
+    )
+    provider = st.selectbox(
+        "Provider",
+        options=list(CHAT_CLIENTS.keys()),
+        label_visibility="collapsed",
+    )
+    api_key = st.text_input(
+        "API Key",
+        type="password",
+        label_visibility="collapsed",
+        placeholder=f"Paste your {provider} API key",
+    )
+
+    chat_model = config.chat_model.providers[provider]
+    st.markdown(
+        f"<div style='margin:14px 0'>"
+        f"<span style='color:#8b949e;font-size:10px'>Embedding Model:</span> "
+        f"<span class='badge badge-embed'>gemini-embedding-2-preview</span><br>"
+        f"<span style='color:#8b949e;font-size:10px'>Chatbot Model:</span> "
+        f"<span class='badge badge-llm'>{chat_model}</span><br>"
+        f"<span style='color:#8b949e;font-size:10px'>Vector DB:</span> "
+        f"<span class='badge badge-pine'>Pinecone</span>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
+
+    st.divider()
 
     # Number of documents and number of indexed documents in the db
     st.markdown(
@@ -197,42 +212,6 @@ with st.sidebar:
         st.info("No documents found. Upload some below.")
 
     st.divider()
-
-    # Upload documents
-    st.markdown(
-        "<p style='font-family:IBM Plex Mono,monospace;font-size:11px;"
-        "color:#8b949e;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px'>"
-        "Upload</p>",
-        unsafe_allow_html=True,
-    )
-    uploaded = st.file_uploader(
-        "Drop files here",
-        type=[ext.lstrip(".") for ext in config.paths.supported_extensions],
-        accept_multiple_files=True,
-        label_visibility="collapsed",
-    )
-    if uploaded:
-        for uf in uploaded:
-            dest = config.paths.documents_folder / uf.name
-            dest.write_bytes(uf.read())
-        st.success(f"Saved {len(uploaded)} file(s). Click **Index** below.")
-        st.rerun()
-
-    st.divider()
-
-    # Index documents
-    st.markdown(
-        "<p style='font-family:IBM Plex Mono,monospace;font-size:11px;"
-        "color:#8b949e;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px'>"
-        "Indexing</p>",
-        unsafe_allow_html=True,
-    )
-    col_a, col_b = st.columns([3, 1])
-    run_index = col_a.button("⚙ Index new docs", use_container_width=True)
-    if run_index:
-        with st.spinner("Indexing... this may take a while for large files."):
-            save_all_files()
-        st.rerun()
 
     # Chat controls
     st.divider()
@@ -323,24 +302,37 @@ if not st.session_state.messages:
 question = st.chat_input("Ask anything")
 
 if question:
-    st.session_state.messages.append(
-        {"role": "user", "content": question, "sources": []}
-    )
-    st.markdown(f"<div class='bubble-user'>🧑 {question}</div>", unsafe_allow_html=True)
+    if not api_key:
+        st.warning("Please enter your API key in the sidebar.")
+    else:
+        st.session_state.messages.append(
+            {"role": "user", "content": question, "sources": []}
+        )
+        st.markdown(
+            f"<div class='bubble-user'>🧑 {question}</div>",
+            unsafe_allow_html=True,
+        )
 
-    with st.spinner("Retrieving & generating..."):
-        history = [
-            {"role": m["role"], "content": m["content"]}
-            for m in st.session_state.messages[:-1]  # exclude current question
-        ]
-        answer, chunks = generate_answer(question, top_k=top_k, chat_history=history)
-        sources = sorted(chunks, key=lambda x: -x["score"])
+        with st.spinner("Retrieving & generating..."):
+            history = [
+                {"role": m["role"], "content": m["content"]}
+                for m in st.session_state.messages[:-1]
+            ]
+            client = create_chat_client(provider, api_key)
+            answer, chunks = generate_answer(
+                question,
+                chat_client=client,
+                provider=provider,
+                top_k=top_k,
+                chat_history=history,
+            )
+            sources = sorted(chunks, key=lambda x: -x["score"])
 
-    st.session_state.messages.append(
-        {
-            "role": "assistant",
-            "content": answer,
-            "sources": sources,
-        }
-    )
-    st.rerun()
+        st.session_state.messages.append(
+            {
+                "role": "assistant",
+                "content": answer,
+                "sources": sources,
+            }
+        )
+        st.rerun()

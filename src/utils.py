@@ -59,7 +59,7 @@ def get_gen_ai_client() -> Client:
         Gen AI client.
     """
 
-    return genai.Client(api_key=config.chat_model.api_key)
+    return genai.Client(api_key=config.embedding_model.api_key)
 
 
 def get_index_vector_db() -> Index:

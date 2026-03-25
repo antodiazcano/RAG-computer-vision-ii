@@ -133,7 +133,7 @@ class TestGetGenAiClient:
         """Checks that the Gemini client is created with the configured API key."""
         mock_client_cls.return_value = MagicMock()
         client = get_gen_ai_client()
-        mock_client_cls.assert_called_once_with(api_key=config.chat_model.api_key)
+        mock_client_cls.assert_called_once_with(api_key=config.embedding_model.api_key)
         assert client == mock_client_cls.return_value
 
 

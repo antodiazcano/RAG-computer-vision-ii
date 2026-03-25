@@ -42,9 +42,13 @@ class ChatModelConfig:
     Class to define the configuration of the chat model.
     """
 
-    api_key = os.getenv("GEMINI_API_KEY")
-    chat_model = "gemini-2.5-flash"
-    system_prompt = (
+    providers = {
+        "Gemini": "gemini-2.5-flash",
+        "OpenAI": "gpt-4.1-nano",
+        "Anthropic": "claude-sonnet-4-20250514",
+    }
+
+    system_prompt: str = (
         "You are a precise and helpful academic assistant.\n\n"
         "You may use two sources of knowledge:\n"
         "1) The provided context (retrieved from a vector database)\n"

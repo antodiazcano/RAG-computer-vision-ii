@@ -1,29 +1,29 @@
 """
-Script to define how the chatbot interacts with the client.
+RAG query flow: embed, retrieve, and generate answers.
 """
 
 from google.genai import types
 
+from src.chatbot.clients import ChatClient
 from src.config import config
 from src.utils import get_gen_ai_client, get_index_vector_db
 
 
-GEN_AI_CLIENT = get_gen_ai_client()
+EMBEDDING_CLIENT = get_gen_ai_client()
 PINECONE_IDX = get_index_vector_db()
 
 
 def _embed_query(question: str) -> list[float]:
     """
-    Embeds the text with the embedding model.
+    Embeds the question with the embedding model using the server's Gemini key.
 
     Args:
-        text: Text to embed.
+        question: Question to embed.
 
     Returns:
-        Embedding of the text.
+        Embedding of the question.
     """
-
-    response = GEN_AI_CLIENT.models.embed_content(
+    response = EMBEDDING_CLIENT.models.embed_content(
         model=config.embedding_model.embedding_model,
         contents=question,
         config=types.EmbedContentConfig(
@@ -31,7 +31,6 @@ def _embed_query(question: str) -> list[float]:
             output_dimensionality=config.embedding_model.embedding_dim,
         ),
     )
-
     return response.embeddings[0].values  # type: ignore
 
 
@@ -39,7 +38,7 @@ def _retrieve_from_vector_db(
     question: str, top_k: int = 3
 ) -> list[dict[str, int | str | float]]:
     """
-    Retrieves the top k chunks associated with the questions of the user.
+    Retrieves the top k chunks associated with the question.
 
     Args:
         question: Question of the user.
@@ -54,12 +53,10 @@ def _retrieve_from_vector_db(
             - The document type of the file of the chunk.
             - The retrieval score of the chunk.
     """
-
     query_vector = _embed_query(question)
     results = PINECONE_IDX.query(
         vector=query_vector, top_k=top_k, include_metadata=True
     )
-
     return [
         {
             "text": m.metadata.get("text"),
@@ -73,40 +70,10 @@ def _retrieve_from_vector_db(
     ]
 
 
-def _create_prompt(
-    question: str, context: str, chat_history: list[dict[str, str]] | None = None
-) -> list[types.Content]:
-    """
-    Creates a prompt for the chatbot to answer.
-
-    Args:
-        question: Question of the user.
-        context: Retrieved context from the vector db.
-        chat_history: Previous conversation turns with "role" and "content" keys.
-
-    Returns:
-        List of Content objects representing the conversation.
-    """
-
-    contents: list[types.Content] = []
-    for msg in chat_history or []:
-        role = "user" if msg["role"] == "user" else "model"
-        contents.append(
-            types.Content(role=role, parts=[types.Part(text=msg["content"])])
-        )
-
-    contents.append(
-        types.Content(
-            role="user",
-            parts=[types.Part(text=f"CONTEXT:\n{context}\n\nQUESTION: {question}")],
-        )
-    )
-
-    return contents
-
-
 def generate_answer(
     question: str,
+    chat_client: ChatClient,
+    provider: str,
     top_k: int = 3,
     chat_history: list[dict[str, str]] | None = None,
 ) -> tuple[str, list[dict[str, int | str | float]]]:
@@ -115,33 +82,29 @@ def generate_answer(
 
     Args:
         question: Question of the user.
+        chat_client: Chat client to use for generation.
+        provider: Provider name to look up the model.
         top_k: Number of chunks to retrieve.
         chat_history: Previous conversation turns with "role" and "content" keys.
 
     Returns:
         Response of the model and chunks retrieved.
     """
-
     chunks = _retrieve_from_vector_db(question, top_k=top_k)
     context = "\n".join(
         f"[{c['source']} - Section {c['page']}]: {c['text']}" for c in chunks
     )
-    contents = _create_prompt(question, context, chat_history)
 
-    dummy = False
+    messages = list(chat_history or [])
+    messages.append(
+        {"role": "user", "content": f"CONTEXT:\n{context}\n\nQUESTION: {question}"}
+    )
 
-    if not dummy:
-        response = GEN_AI_CLIENT.models.generate_content(
-            model=config.chat_model.chat_model,
-            contents=contents,  # type: ignore
-            config=types.GenerateContentConfig(
-                system_instruction=config.chat_model.system_prompt,
-            ),
-        )
-    else:
-        return "aaa", chunks
+    model = config.chat_model.providers[provider]
+    answer = chat_client.chat(
+        model=model,
+        system_prompt=config.chat_model.system_prompt,
+        messages=messages,
+    )
 
-    if not isinstance(response.text, str):
-        raise RuntimeError("Chatbot could not answer!")
-
-    return response.text, chunks
+    return answer, chunks
