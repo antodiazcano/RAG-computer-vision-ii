@@ -153,14 +153,21 @@ with st.sidebar:
     provider = st.selectbox(
         "Provider",
         options=list(CHAT_CLIENTS.keys()),
+        index=list(CHAT_CLIENTS.keys()).index("Groq"),
         label_visibility="collapsed",
     )
+    use_default_groq = provider == "Groq" and bool(config.chat_model.groq_api_key)
     api_key = st.text_input(
         "API Key",
         type="password",
         label_visibility="collapsed",
-        placeholder=f"Paste your {provider} API key",
+        placeholder="Using free Llama model"
+        if use_default_groq
+        else f"Paste your {provider} API key",
+        disabled=use_default_groq,
     )
+    if use_default_groq:
+        api_key = config.chat_model.groq_api_key  # type: ignore
 
     chat_model = config.chat_model.providers[provider]
     st.markdown(
@@ -197,7 +204,7 @@ with st.sidebar:
 
     # List of documents
     if all_files:
-        with st.expander("📄 Documents", expanded=True):
+        with st.expander("📄 Documents", expanded=False):
             for p in sorted(all_files):
                 h = file_hash(p)
                 indexed = reg.get(p.name) == h
@@ -213,8 +220,6 @@ with st.sidebar:
 
     st.divider()
 
-    # Chat controls
-    st.divider()
     if st.button("🗑 Clear chat", use_container_width=True):
         st.session_state.messages = []
         st.rerun()

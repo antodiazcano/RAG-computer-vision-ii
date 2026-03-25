@@ -1,5 +1,6 @@
 """
-Chat client implementations for different LLM providers.
+Chat client implementations for different LLM providers. This is not done with Langchain
+because it's not too complex and this way we avoid the dependencies.
 """
 
 from typing import Literal, Protocol
@@ -191,10 +192,74 @@ class AnthropicChat(ChatClient):
         return response.content[0].text  # type: ignore
 
 
+class GroqChat(ChatClient):
+    """
+    Chat client for Groq.
+    """
+
+    def __init__(self, api_key: str) -> None:
+        """
+        Constructor of the class.
+
+        Args:
+            api_key: Groq API key.
+        """
+
+        self._client = openai.OpenAI(
+            api_key=api_key, base_url="https://api.groq.com/openai/v1"
+        )
+
+    def chat(
+        self,
+        model: str,
+        system_prompt: str,
+        messages: list[dict[str, str]],
+    ) -> str:
+        """
+        Sends a chat request to Groq.
+
+        Args:
+            model: Model name.
+            system_prompt: System prompt.
+            messages: Conversation turns with "role" and "content" keys.
+
+        Returns:
+            Model response text.
+        """
+
+        oai_messages: list[openai.types.chat.ChatCompletionMessageParam] = [
+            openai.types.chat.ChatCompletionSystemMessageParam(
+                role="system", content=system_prompt
+            )
+        ]
+        for msg in messages:
+            if msg["role"] == "user":
+                oai_messages.append(
+                    openai.types.chat.ChatCompletionUserMessageParam(
+                        role="user", content=msg["content"]
+                    )
+                )
+            else:
+                oai_messages.append(
+                    openai.types.chat.ChatCompletionAssistantMessageParam(
+                        role="assistant", content=msg["content"]
+                    )
+                )
+        response = self._client.chat.completions.create(
+            model=model, messages=oai_messages
+        )
+
+        if not isinstance(response.choices[0].message.content, str):
+            raise RuntimeError("Groq could not generate a response.")
+
+        return response.choices[0].message.content
+
+
 CHAT_CLIENTS: dict[str, type[ChatClient]] = {
     "Gemini": GeminiChat,
     "OpenAI": OpenAIChat,
     "Anthropic": AnthropicChat,
+    "Groq": GroqChat,
 }
 
 

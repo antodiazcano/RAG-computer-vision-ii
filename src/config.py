@@ -21,7 +21,6 @@ class EmbeddingModelConfig:
     api_key = os.getenv("GEMINI_API_KEY")
     embedding_model = "gemini-embedding-2-preview"
     embedding_dim = 768
-    render_dpi = 150
 
 
 @dataclass
@@ -42,10 +41,12 @@ class ChatModelConfig:
     Class to define the configuration of the chat model.
     """
 
+    groq_api_key = os.getenv("GROQ_API_KEY")
     providers = {
         "Gemini": "gemini-2.5-flash",
         "OpenAI": "gpt-4.1-nano",
         "Anthropic": "claude-sonnet-4-20250514",
+        "Groq": "llama-3.3-70b-versatile",
     }
 
     system_prompt: str = (

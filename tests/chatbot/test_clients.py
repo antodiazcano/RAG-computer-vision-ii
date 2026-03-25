@@ -9,6 +9,7 @@ import pytest
 from src.chatbot.clients import (
     AnthropicChat,
     GeminiChat,
+    GroqChat,
     OpenAIChat,
     create_chat_client,
 )
@@ -31,6 +32,11 @@ class TestCreateChatClient:
         """Checks that an AnthropicChat instance is created for the Anthropic provider."""
         client = create_chat_client("Anthropic", "fake-key")
         assert isinstance(client, AnthropicChat)
+
+    def test_creates_groq_client(self) -> None:
+        """Checks that a GroqChat instance is created for the Groq provider."""
+        client = create_chat_client("Groq", "fake-key")
+        assert isinstance(client, GroqChat)
 
     def test_raises_on_unknown_provider(self) -> None:
         """Checks that an unknown provider raises a ValueError."""
