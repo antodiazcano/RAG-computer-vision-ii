@@ -14,14 +14,14 @@ from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponen
 from src.config import config
 from src.utils import (
     file_hash,
-    get_gen_ai_client,
+    get_embedding_client,
     get_index_vector_db,
     load_registry,
     save_registry,
 )
 
 
-GEN_AI_CLIENT = get_gen_ai_client()
+GEN_AI_CLIENT = get_embedding_client()
 PINECONE_IDX = get_index_vector_db()
 
 
@@ -54,13 +54,18 @@ class Processor(ABC):
     )
     def _embed_text(text: str) -> list[float]:
         """
-        Embeds the text with the embedding model. Retries on rate limit (429) errors.
+        Embeds the text with the embedding model. Retries on rate limit (429) errors
+        with exponential backoff.
 
         Args:
             text: Text to embed.
 
         Returns:
             Embedding of the text.
+
+        Raises:
+            ValueError: If the embedding response is invalid (e.g. no embeddings
+                returned).
         """
 
         response = GEN_AI_CLIENT.models.embed_content(
@@ -72,7 +77,10 @@ class Processor(ABC):
             ),
         )
 
-        return response.embeddings[0].values  # type: ignore
+        if (response.embeddings is None) or (response.embeddings[0].values is None):
+            raise ValueError("Invalid embedding response: no embeddings returned.")
+
+        return response.embeddings[0].values
 
     @abstractmethod
     def _obtain_chunks(self) -> list[dict[str, str | int]]:

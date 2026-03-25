@@ -16,7 +16,13 @@ class ChatClient(Protocol):
     Protocol for chat clients.
     """
 
-    def __init__(self, api_key: str) -> None: ...
+    def __init__(self, api_key: str) -> None:
+        """
+        Constructor of the class.
+
+        Args:
+            api_key: API key for the chat client.
+        """
 
     def chat(
         self,
@@ -33,7 +39,7 @@ class ChatClient(Protocol):
             messages: Conversation turns with 'role' and 'content' keys.
 
         Returns:
-            Model response text.
+            Response of the model.
         """
 
 
@@ -62,10 +68,13 @@ class GeminiChat(ChatClient):
         Args:
             model: Model name.
             system_prompt: System prompt.
-            messages: Conversation turns with "role" and "content" keys.
+            messages: Conversation turns with 'role' and 'content' keys.
 
         Returns:
-            Model response text.
+            Response of the model.
+
+        Raises:
+            RuntimeError: If Gemini could not generate a response.
         """
 
         contents: list[types.Content] = []
@@ -94,6 +103,7 @@ class OpenAIChat(ChatClient):
     def __init__(self, api_key: str) -> None:
         """
         Constructor of the class.
+
         Args:
             api_key: OpenAI API key.
         """
@@ -115,7 +125,10 @@ class OpenAIChat(ChatClient):
             messages: Conversation turns with 'role' and 'content' keys.
 
         Returns:
-            Model response text.
+            Response of the model.
+
+        Raises:
+            RuntimeError: If OpenAI could not generate a response.
         """
 
         oai_messages: list[openai.types.chat.ChatCompletionMessageParam] = [
@@ -173,10 +186,13 @@ class AnthropicChat(ChatClient):
         Args:
             model: Model name.
             system_prompt: System prompt.
-            messages: Conversation turns with "role" and "content" keys.
+            messages: Conversation turns with 'role' and 'content' keys.
 
         Returns:
             Model response text.
+
+        Raises:
+            RuntimeError: If Anthropic could not generate a response.
         """
 
         ant_messages: list[anthropic.types.MessageParam] = []
@@ -186,10 +202,14 @@ class AnthropicChat(ChatClient):
             )
             ant_messages.append({"role": role, "content": msg["content"]})
         response = self._client.messages.create(
-            model=model, system=system_prompt, messages=ant_messages, max_tokens=4096
+            model=model, system=system_prompt, messages=ant_messages, max_tokens=4_096
         )
 
-        return response.content[0].text  # type: ignore
+        block = response.content[0]
+        if not hasattr(block, "text"):
+            raise RuntimeError("Anthropic did not return a text response.")
+
+        return block.text
 
 
 class GroqChat(ChatClient):
@@ -221,10 +241,13 @@ class GroqChat(ChatClient):
         Args:
             model: Model name.
             system_prompt: System prompt.
-            messages: Conversation turns with "role" and "content" keys.
+            messages: Conversation turns with 'role' and 'content' keys.
 
         Returns:
             Model response text.
+
+        Raises:
+            RuntimeError: If Groq could not generate a response.
         """
 
         oai_messages: list[openai.types.chat.ChatCompletionMessageParam] = [

@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 # Mock the module-level clients before importing
 with (
-    patch("src.utils.get_gen_ai_client", return_value=MagicMock()),
+    patch("src.utils.get_embedding_client", return_value=MagicMock()),
     patch("src.utils.get_index_vector_db", return_value=MagicMock()),
 ):
     from src.embed_documents.pdf_processor import PDFProcessor

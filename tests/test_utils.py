@@ -12,7 +12,7 @@ import pytest
 from src.config import config
 from src.utils import (
     file_hash,
-    get_gen_ai_client,
+    get_embedding_client,
     get_index_vector_db,
     load_registry,
     save_registry,
@@ -125,14 +125,14 @@ class TestSaveRegistry:
         assert saved == {"new": "data"}
 
 
-class TestGetGenAiClient:
-    """Tests for the get_gen_ai_client function."""
+class TestGetEmbeddingClient:
+    """Tests for the get_embedding_client function."""
 
     @patch("src.utils.genai.Client")
     def test_creates_client_with_api_key(self, mock_client_cls: MagicMock) -> None:
         """Checks that the Gemini client is created with the configured API key."""
         mock_client_cls.return_value = MagicMock()
-        client = get_gen_ai_client()
+        client = get_embedding_client()
         mock_client_cls.assert_called_once_with(api_key=config.embedding_model.api_key)
         assert client == mock_client_cls.return_value
 

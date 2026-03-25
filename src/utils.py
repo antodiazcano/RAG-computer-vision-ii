@@ -17,7 +17,7 @@ from src.config import config
 
 def file_hash(path: Path) -> str:
     """
-    Hashes the file of a path.
+    Hashes the path of a file.
 
     Args:
         path: Path to hash.
@@ -32,6 +32,9 @@ def file_hash(path: Path) -> str:
 def load_registry() -> dict[str, str]:
     """
     Loads the registry of the already indexed files.
+
+    Returns:
+        Dictionary mapping filename to its hash.
     """
 
     try:
@@ -44,6 +47,9 @@ def load_registry() -> dict[str, str]:
 def save_registry(reg: dict[str, str]) -> None:
     """
     Updates (saves again) the indexed files.
+
+    Args:
+        reg: Registry to save (mapping filename to its hash).
     """
 
     config.paths.registry_path.write_text(
@@ -51,12 +57,12 @@ def save_registry(reg: dict[str, str]) -> None:
     )
 
 
-def get_gen_ai_client() -> Client:
+def get_embedding_client() -> Client:
     """
-    Obtains the gen AI client.
+    Obtains the embedding client.
 
     Returns:
-        Gen AI client.
+        Embedding client.
     """
 
     return genai.Client(api_key=config.embedding_model.api_key)

@@ -1,15 +1,15 @@
 """
-RAG query flow: embed, retrieve, and generate answers.
+RAG flow: embed query, retrieve relevant documents, and generate answers.
 """
 
 from google.genai import types
 
 from src.chatbot.clients import ChatClient
 from src.config import config
-from src.utils import get_gen_ai_client, get_index_vector_db
+from src.utils import get_embedding_client, get_index_vector_db
 
 
-EMBEDDING_CLIENT = get_gen_ai_client()
+EMBEDDING_CLIENT = get_embedding_client()
 PINECONE_IDX = get_index_vector_db()
 
 
@@ -22,7 +22,11 @@ def _embed_query(question: str) -> list[float]:
 
     Returns:
         Embedding of the question.
+
+    Raises:
+        RuntimeError: If the embedding response is empty.
     """
+
     response = EMBEDDING_CLIENT.models.embed_content(
         model=config.embedding_model.embedding_model,
         contents=question,
@@ -31,7 +35,11 @@ def _embed_query(question: str) -> list[float]:
             output_dimensionality=config.embedding_model.embedding_dim,
         ),
     )
-    return response.embeddings[0].values  # type: ignore
+
+    if (not response.embeddings) or (response.embeddings[0].values is None):
+        raise RuntimeError("Embedding response is empty.")
+
+    return response.embeddings[0].values
 
 
 def _retrieve_from_vector_db(
@@ -53,6 +61,7 @@ def _retrieve_from_vector_db(
             - The document type of the file of the chunk.
             - The retrieval score of the chunk.
     """
+
     query_vector = _embed_query(question)
     results = PINECONE_IDX.query(
         vector=query_vector, top_k=top_k, include_metadata=True
@@ -90,6 +99,7 @@ def generate_answer(
     Returns:
         Response of the model and chunks retrieved.
     """
+
     chunks = _retrieve_from_vector_db(question, top_k=top_k)
     context = "\n".join(
         f"[{c['source']} - Section {c['page']}]: {c['text']}" for c in chunks

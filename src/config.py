@@ -48,7 +48,6 @@ class ChatModelConfig:
         "Anthropic": "claude-sonnet-4-20250514",
         "Groq": "llama-3.3-70b-versatile",
     }
-
     system_prompt: str = (
         "You are a precise and helpful academic assistant.\n\n"
         "You may use two sources of knowledge:\n"

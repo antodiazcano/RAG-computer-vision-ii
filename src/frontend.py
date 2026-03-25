@@ -156,14 +156,16 @@ with st.sidebar:
         index=list(CHAT_CLIENTS.keys()).index("Groq"),
         label_visibility="collapsed",
     )
-    use_default_groq = provider == "Groq" and bool(config.chat_model.groq_api_key)
+    use_default_groq = provider == "Groq"
     api_key = st.text_input(
         "API Key",
         type="password",
         label_visibility="collapsed",
-        placeholder="Using free Llama model"
-        if use_default_groq
-        else f"Paste your {provider} API key",
+        placeholder=(
+            "Using free Llama model"
+            if use_default_groq
+            else f"Paste your {provider} API key"
+        ),
         disabled=use_default_groq,
     )
     if use_default_groq:

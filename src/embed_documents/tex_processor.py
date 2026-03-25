@@ -77,9 +77,8 @@ class TEXProcessor(Processor):
             content: Document body (after preamble removal).
 
         Returns:
-            A tuple containing:
-                - A list of (section_id, raw_text) pairs.
-                - The total number of top-level sections.
+            - A list of (section_id, raw_text) pairs.
+            - The total number of top-level sections.
         """
 
         section_pattern = re.compile(r"\\(section|subsection)\{([^}]*)\}")
