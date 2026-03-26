@@ -3,31 +3,26 @@ Chat client implementations for different LLM providers. This is not done with L
 because it's not too complex and this way we avoid the dependencies.
 """
 
-from typing import Literal, Protocol
+from abc import ABC, abstractmethod
+from typing import Callable, Literal
 
 import anthropic
 import openai
 from google import genai
 from google.genai import types
 
+from src.config import config
 
-class ChatClient(Protocol):
+
+class ChatClient(ABC):
     """
-    Protocol for chat clients.
+    Abstract base class for chat clients.
     """
 
-    def __init__(self, api_key: str) -> None:
-        """
-        Constructor of the class.
-
-        Args:
-            api_key: API key for the chat client.
-        """
-
+    @abstractmethod
     def chat(
         self,
         model: str,
-        system_prompt: str,
         messages: list[dict[str, str]],
     ) -> str:
         """
@@ -35,7 +30,6 @@ class ChatClient(Protocol):
 
         Args:
             model: Model name.
-            system_prompt: System prompt.
             messages: Conversation turns with 'role' and 'content' keys.
 
         Returns:
@@ -44,7 +38,9 @@ class ChatClient(Protocol):
 
 
 class GeminiChat(ChatClient):
-    """Chat client for Gemini."""
+    """
+    Chat client for Gemini.
+    """
 
     def __init__(self, api_key: str) -> None:
         """
@@ -59,7 +55,6 @@ class GeminiChat(ChatClient):
     def chat(
         self,
         model: str,
-        system_prompt: str,
         messages: list[dict[str, str]],
     ) -> str:
         """
@@ -67,7 +62,6 @@ class GeminiChat(ChatClient):
 
         Args:
             model: Model name.
-            system_prompt: System prompt.
             messages: Conversation turns with 'role' and 'content' keys.
 
         Returns:
@@ -86,7 +80,9 @@ class GeminiChat(ChatClient):
         response = self._client.models.generate_content(
             model=model,
             contents=contents,  # type: ignore
-            config=types.GenerateContentConfig(system_instruction=system_prompt),
+            config=types.GenerateContentConfig(
+                system_instruction=config.chat_model.system_prompt
+            ),
         )
 
         if not isinstance(response.text, str):
@@ -95,45 +91,47 @@ class GeminiChat(ChatClient):
         return response.text
 
 
-class OpenAIChat(ChatClient):
+class _OpenAICompatibleChat(ChatClient):
     """
-    Chat client for OpenAI.
+    Shared base for providers that expose an OpenAI-compatible API.
     """
 
-    def __init__(self, api_key: str) -> None:
+    def __init__(self, api_key: str, base_url: str | None = None) -> None:
         """
         Constructor of the class.
 
         Args:
-            api_key: OpenAI API key.
+            api_key: API key.
+            base_url: Optional custom base URL.
         """
 
-        self._client = openai.OpenAI(api_key=api_key)
+        if base_url:
+            self._client = openai.OpenAI(api_key=api_key, base_url=base_url)
+        else:
+            self._client = openai.OpenAI(api_key=api_key)
 
     def chat(
         self,
         model: str,
-        system_prompt: str,
         messages: list[dict[str, str]],
     ) -> str:
         """
-        Sends a chat request to OpenAI.
+        Sends a chat request to an OpenAI-compatible endpoint.
 
         Args:
             model: Model name.
-            system_prompt: System prompt.
             messages: Conversation turns with 'role' and 'content' keys.
 
         Returns:
             Response of the model.
 
         Raises:
-            RuntimeError: If OpenAI could not generate a response.
+            RuntimeError: If the provider could not generate a response.
         """
 
         oai_messages: list[openai.types.chat.ChatCompletionMessageParam] = [
             openai.types.chat.ChatCompletionSystemMessageParam(
-                role="system", content=system_prompt
+                role="system", content=config.chat_model.system_prompt
             )
         ]
         for msg in messages:
@@ -154,9 +152,25 @@ class OpenAIChat(ChatClient):
         )
 
         if not isinstance(response.choices[0].message.content, str):
-            raise RuntimeError("Gemini could not generate a response.")
+            raise RuntimeError(
+                f"{self.__class__.__name__} could not generate a response."
+            )
 
         return response.choices[0].message.content
+
+
+class OpenAIChat(_OpenAICompatibleChat):
+    """Chat client for OpenAI."""
+
+    def __init__(self, api_key: str) -> None:
+        super().__init__(api_key)
+
+
+class GroqChat(_OpenAICompatibleChat):
+    """Chat client for Groq."""
+
+    def __init__(self, api_key: str) -> None:
+        super().__init__(api_key, base_url="https://api.groq.com/openai/v1")
 
 
 class AnthropicChat(ChatClient):
@@ -177,7 +191,6 @@ class AnthropicChat(ChatClient):
     def chat(
         self,
         model: str,
-        system_prompt: str,
         messages: list[dict[str, str]],
     ) -> str:
         """
@@ -185,7 +198,6 @@ class AnthropicChat(ChatClient):
 
         Args:
             model: Model name.
-            system_prompt: System prompt.
             messages: Conversation turns with 'role' and 'content' keys.
 
         Returns:
@@ -202,88 +214,27 @@ class AnthropicChat(ChatClient):
             )
             ant_messages.append({"role": role, "content": msg["content"]})
         response = self._client.messages.create(
-            model=model, system=system_prompt, messages=ant_messages, max_tokens=4_096
+            model=model,
+            system=config.chat_model.system_prompt,
+            messages=ant_messages,
+            max_tokens=4_096,
         )
 
         block = response.content[0]
         if not hasattr(block, "text"):
-            raise RuntimeError("Anthropic did not return a text response.")
+            raise RuntimeError("Anthropic could not generate a response.")
 
         return block.text
 
 
-class GroqChat(ChatClient):
-    """
-    Chat client for Groq.
-    """
-
-    def __init__(self, api_key: str) -> None:
-        """
-        Constructor of the class.
-
-        Args:
-            api_key: Groq API key.
-        """
-
-        self._client = openai.OpenAI(
-            api_key=api_key, base_url="https://api.groq.com/openai/v1"
-        )
-
-    def chat(
-        self,
-        model: str,
-        system_prompt: str,
-        messages: list[dict[str, str]],
-    ) -> str:
-        """
-        Sends a chat request to Groq.
-
-        Args:
-            model: Model name.
-            system_prompt: System prompt.
-            messages: Conversation turns with 'role' and 'content' keys.
-
-        Returns:
-            Model response text.
-
-        Raises:
-            RuntimeError: If Groq could not generate a response.
-        """
-
-        oai_messages: list[openai.types.chat.ChatCompletionMessageParam] = [
-            openai.types.chat.ChatCompletionSystemMessageParam(
-                role="system", content=system_prompt
-            )
-        ]
-        for msg in messages:
-            if msg["role"] == "user":
-                oai_messages.append(
-                    openai.types.chat.ChatCompletionUserMessageParam(
-                        role="user", content=msg["content"]
-                    )
-                )
-            else:
-                oai_messages.append(
-                    openai.types.chat.ChatCompletionAssistantMessageParam(
-                        role="assistant", content=msg["content"]
-                    )
-                )
-        response = self._client.chat.completions.create(
-            model=model, messages=oai_messages
-        )
-
-        if not isinstance(response.choices[0].message.content, str):
-            raise RuntimeError("Groq could not generate a response.")
-
-        return response.choices[0].message.content
-
-
-CHAT_CLIENTS: dict[str, type[ChatClient]] = {
+CHAT_CLIENTS: dict[str, Callable[[str], ChatClient]] = {
     "Gemini": GeminiChat,
     "OpenAI": OpenAIChat,
     "Anthropic": AnthropicChat,
     "Groq": GroqChat,
 }
+# The Callable[[str], ChatClient] type means a function that takes a string (the API
+# key) and returns a ChatClient instance.
 
 
 def create_chat_client(provider: str, api_key: str) -> ChatClient:
@@ -296,8 +247,14 @@ def create_chat_client(provider: str, api_key: str) -> ChatClient:
 
     Returns:
         Chat client instance.
+
+    Raises:
+        ValueError: If the provider is not supported.
     """
+
     cls = CHAT_CLIENTS.get(provider)
+
     if cls is None:
         raise ValueError(f"Unknown provider: {provider}")
-    return cls(api_key=api_key)
+
+    return cls(api_key)

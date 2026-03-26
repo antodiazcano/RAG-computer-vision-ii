@@ -22,35 +22,33 @@ class PDFProcessor(Processor):
             A list that for each chunk contains:
                 - The text of the chunk.
                 - The file where the chunk was retrieved.
-                - The page of the retrieved chunk.
-                - The total number of pages of the file of the chunk.
+                - The location of the retrieved chunk (page number).
+                - The total number of locations in the file (total pages).
                 - The document type of the file of the chunk.
         """
 
-        doc = fitz.open(str(self.path))
-        chunks = []
-        total_pages = len(doc)
+        with fitz.open(str(self.path)) as doc:
+            chunks = []
+            total_locations = len(doc)
 
-        for page_num in range(total_pages):
-            print(f"Obtaining chunks for page {page_num}...")
-            page = doc[page_num]
-            text = page.get_text("text").strip()
-            if not text:
-                print(
-                    f"Could not extract text from page {page_num} of file "
-                    f"{self.path}."
+            for page_num in range(total_locations):
+                print(f"Obtaining chunks for page {page_num}...")
+                page = doc[page_num]
+                text = page.get_text("text").strip()
+                if not text:
+                    print(
+                        f"Could not extract text from page {page_num} of file "
+                        f"{self.path}."
+                    )
+                    continue
+                chunks.append(
+                    {
+                        "text": text,
+                        "source": self.path.name,
+                        "location": page_num + 1,
+                        "total_locations": total_locations,
+                        "doc_type": "pdf",
+                    }
                 )
-                continue
-            chunks.append(
-                {
-                    "text": text,
-                    "source": self.path.name,
-                    "page": page_num + 1,
-                    "total_pages": total_pages,
-                    "doc_type": "pdf",
-                }
-            )
-
-        doc.close()
 
         return chunks

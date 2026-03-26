@@ -3,15 +3,9 @@ Tests for src/embed_documents/tex_processor.py
 """
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-
-# Mock the module-level clients before importing
-with (
-    patch("src.utils.get_embedding_client", return_value=MagicMock()),
-    patch("src.utils.get_index_vector_db", return_value=MagicMock()),
-):
-    from src.embed_documents.tex_processor import TEXProcessor
+from src.embed_documents.tex_processor import TEXProcessor
 
 
 class TestStripLatex:
@@ -202,15 +196,7 @@ class TestObtainChunks:
     """Integration tests for the TEXProcessor._obtain_chunks method."""
 
     def _write_tex(self, tmp_path: Path, content: str) -> Path:
-        """Writes a .tex file and returns its path.
-
-        Args:
-            tmp_path: Pytest tmp_path fixture.
-            content: LaTeX content to write.
-
-        Returns:
-            Path to the created .tex file.
-        """
+        """Writes a .tex file and returns its path."""
         f = tmp_path / "doc.tex"
         f.write_text(content, encoding="utf-8")
         return f
@@ -227,17 +213,17 @@ class TestObtainChunks:
             "Methods paragraph.\n"
             "\\end{document}\n"
         )
-        proc = TEXProcessor(self._write_tex(tmp_path, content))
+        proc = TEXProcessor(self._write_tex(tmp_path, content), MagicMock(), MagicMock())
         chunks = proc._obtain_chunks()
 
         assert len(chunks) == 3
-        assert chunks[0]["page"] == "1"
+        assert chunks[0]["location"] == "1"
         assert chunks[0]["text"] == "First paragraph."
-        assert chunks[1]["page"] == "1"
+        assert chunks[1]["location"] == "1"
         assert chunks[1]["text"] == "Second paragraph."
-        assert chunks[2]["page"] == "2"
+        assert chunks[2]["location"] == "2"
         assert chunks[2]["text"] == "Methods paragraph."
-        assert all(c["total_pages"] == 2 for c in chunks)
+        assert all(c["total_locations"] == 2 for c in chunks)
         assert all(c["doc_type"] == "tex" for c in chunks)
 
     def test_subsections_end_to_end(self, tmp_path: Path) -> None:
@@ -252,11 +238,11 @@ class TestObtainChunks:
             "Sub B text.\n"
             "\\end{document}\n"
         )
-        proc = TEXProcessor(self._write_tex(tmp_path, content))
+        proc = TEXProcessor(self._write_tex(tmp_path, content), MagicMock(), MagicMock())
         chunks = proc._obtain_chunks()
 
         assert len(chunks) == 3
-        assert [c["page"] for c in chunks] == ["1", "1.1", "1.2"]
+        assert [c["location"] for c in chunks] == ["1", "1.1", "1.2"]
 
     def test_preserves_math(self, tmp_path: Path) -> None:
         """Checks that math expressions survive the full pipeline."""
@@ -266,7 +252,7 @@ class TestObtainChunks:
             "The formula $E = mc^2$ is important.\n"
             "\\end{document}\n"
         )
-        proc = TEXProcessor(self._write_tex(tmp_path, content))
+        proc = TEXProcessor(self._write_tex(tmp_path, content), MagicMock(), MagicMock())
         chunks = proc._obtain_chunks()
 
         assert "$E = mc^2$" in chunks[0]["text"]
@@ -276,7 +262,7 @@ class TestObtainChunks:
         content = "\\begin{document}\n\\section{A}\nText.\n\\end{document}\n"
         f = tmp_path / "lecture.tex"
         f.write_text(content, encoding="utf-8")
-        proc = TEXProcessor(f)
+        proc = TEXProcessor(f, MagicMock(), MagicMock())
         chunks = proc._obtain_chunks()
 
         assert chunks[0]["source"] == "lecture.tex"
@@ -284,7 +270,7 @@ class TestObtainChunks:
     def test_empty_document(self, tmp_path: Path) -> None:
         """Checks that a document with no content returns no chunks."""
         content = "\\begin{document}\n\\end{document}\n"
-        proc = TEXProcessor(self._write_tex(tmp_path, content))
+        proc = TEXProcessor(self._write_tex(tmp_path, content), MagicMock(), MagicMock())
 
         assert proc._obtain_chunks() == []
 
@@ -298,7 +284,7 @@ class TestObtainChunks:
             "More text.\n"
             "\\end{document}\n"
         )
-        proc = TEXProcessor(self._write_tex(tmp_path, content))
+        proc = TEXProcessor(self._write_tex(tmp_path, content), MagicMock(), MagicMock())
         chunks = proc._obtain_chunks()
 
         assert all(c["text"].strip() for c in chunks)

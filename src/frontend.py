@@ -14,9 +14,14 @@ if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
 from src.chatbot.clients import CHAT_CLIENTS, create_chat_client
-from src.chatbot.generate import generate_answer
+from src.chatbot.generate import RAGEngine
 from src.config import config
-from src.utils import file_hash, get_index_vector_db, load_registry
+from src.utils import (
+    file_hash,
+    get_embedding_client,
+    get_index_vector_db,
+    load_registry,
+)
 
 
 # Cached resources
@@ -34,7 +39,17 @@ def get_pinecone_index() -> Index:
     return get_index_vector_db()
 
 
+@st.cache_resource
+def get_cached_embedding_client():
+    """
+    Caches the Gemini embedding client.
+    """
+
+    return get_embedding_client()
+
+
 PINECONE_IDX = get_pinecone_index()
+EMBEDDING_CLIENT = get_cached_embedding_client()
 
 
 # Start of the page
@@ -61,22 +76,35 @@ st.markdown(
     h1, h2, h3                  { font-family: 'IBM Plex Mono', monospace !important; }
 
     /* ── chat bubbles ── */
-    .bubble-user {
-        background: rgba(124,106,247,.12);
-        border: 1px solid rgba(124,106,247,.30);
+    .bubble-user, .bubble-bot {
+        display: flex;
+        gap: 10px;
         border-radius: 8px;
         padding: 12px 16px;
         margin-bottom: 6px;
         color: #e6edf3;
     }
+    .bubble-user {
+        background: rgba(124,106,247,.12);
+        border: 1px solid rgba(124,106,247,.30);
+    }
     .bubble-bot {
         background: #161b22;
         border: 1px solid #30363d;
-        border-radius: 8px;
-        padding: 12px 16px;
-        margin-bottom: 6px;
-        color: #e6edf3;
         line-height: 1.65;
+    }
+    .bubble-icon {
+        flex-shrink: 0;
+        width: 20px;
+        height: 20px;
+        font-size: 20px;
+        line-height: 20px;
+        text-align: center;
+        margin-top: 2px;
+    }
+    .bubble-content {
+        flex: 1;
+        min-width: 0;
     }
 
     /* ── source card header ── */
@@ -245,12 +273,17 @@ st.markdown(
 for msg in st.session_state.messages:
     if msg["role"] == "user":
         st.markdown(
-            f"<div class='bubble-user'>🧑 {msg['content']}</div>",
+            f"<div class='bubble-user'>"
+            f"<span class='bubble-icon'>🧑</span>"
+            f"<span class='bubble-content'>{msg['content']}</span></div>",
             unsafe_allow_html=True,
         )
     else:
         st.markdown(
-            f"<div class='bubble-bot'>{msg['content']}</div>", unsafe_allow_html=True
+            f"<div class='bubble-bot'>"
+            f"<span class='bubble-icon'>🤖</span>"
+            f"<span class='bubble-content'>{msg['content']}</span></div>",
+            unsafe_allow_html=True,
         )
 
         sources = msg.get("sources", [])
@@ -278,7 +311,7 @@ for msg in st.session_state.messages:
                     f"text-overflow:ellipsis'>{src['source']}</div>"
                     f"<div style='color:#8b949e;font-size:10px;margin:4px 0 8px'>"
                     f"{'§' if src.get('doc_type') == 'tex' else 'Page'} "
-                    f"{src['page']} / {src['total_pages']}</div>"
+                    f"{src['location']} / {src['total_locations']}</div>"
                     f"<div style='background:#21262d;border-radius:3px;height:6px;"
                     f"overflow:hidden'>"
                     f"<div style='width:{score_pct}%;height:100%;"
@@ -316,7 +349,9 @@ if question:
             {"role": "user", "content": question, "sources": []}
         )
         st.markdown(
-            f"<div class='bubble-user'>🧑 {question}</div>",
+            f"<div class='bubble-user'>"
+            f"<span class='bubble-icon'>🧑</span>"
+            f"<span class='bubble-content'>{question}</span></div>",
             unsafe_allow_html=True,
         )
 
@@ -326,10 +361,14 @@ if question:
                 for m in st.session_state.messages[:-1]
             ]
             client = create_chat_client(provider, api_key)
-            answer, chunks = generate_answer(
-                question,
+            engine = RAGEngine(
                 chat_client=client,
-                provider=provider,
+                model=chat_model,
+                embedding_client=EMBEDDING_CLIENT,
+                pinecone_index=PINECONE_IDX,
+            )
+            answer, chunks = engine.generate_answer(
+                question,
                 top_k=top_k,
                 chat_history=history,
             )

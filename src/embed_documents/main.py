@@ -3,13 +3,14 @@ Script with the main functions to manage the vector db: deleting vectors and ind
 documents.
 """
 
-from pathlib import Path
 from typing import Any
+
+from pinecone.db_data.index import Index
 
 from src.config import config
 from src.embed_documents.pdf_processor import PDFProcessor
 from src.embed_documents.tex_processor import TEXProcessor
-from src.utils import get_index_vector_db, load_registry, save_registry
+from src.utils import get_embedding_client, get_index_vector_db
 
 
 PROCESSORS = {
@@ -19,45 +20,35 @@ PROCESSORS = {
 
 
 def delete_vectors_by_metadata(
-    metadata_filter: dict[str, Any], remove_from_registry: str | None = None
+    pinecone_index: Index, metadata_filter: dict[str, Any]
 ) -> None:
     """
     Deletes vectors from the vector db that match the given metadata filter.
 
     Args:
-        metadata_filter: Pinecone metadata filter (e.g. {"source": "file.pdf"}).
-        remove_from_registry: If provided, removes this filename from the registry.
+        pinecone_index: Pinecone index to delete from.
+        metadata_filter: Pinecone metadata filter (e.g. {'source': 'file.pdf'}).
     """
 
-    idx = get_index_vector_db()
-    idx.delete(filter=metadata_filter)
+    pinecone_index.delete(filter=metadata_filter)
     print(f"Deleted vectors matching {metadata_filter}.")
 
-    if remove_from_registry:
-        reg = load_registry()
-        if reg.pop(remove_from_registry, None):
-            save_registry(reg)
-            print(f"Removed '{remove_from_registry}' from registry.")
 
-
-def save_all_files(folder: Path | None = None) -> dict[str, int]:
+def save_all_files() -> dict[str, int]:
     """
     Indexes all supported files in a folder into the vector db.
-
-    Args:
-        folder: Folder to scan. Defaults to the configured documents folder.
 
     Returns:
         A dict mapping each processed filename to its chunk count.
     """
 
-    if folder is None:
-        folder = config.paths.documents_folder
+    embedding_client = get_embedding_client()
+    pinecone_index = get_index_vector_db()
 
     results: dict[str, int] = {}
     all_files = [
         p
-        for p in folder.iterdir()
+        for p in config.paths.documents_folder.iterdir()
         if p.suffix.lower() in config.paths.supported_extensions
     ]
 
@@ -67,7 +58,7 @@ def save_all_files(folder: Path | None = None) -> dict[str, int]:
             continue
 
         print(f"Processing {path.name}...")
-        n = processor_cls(path).process()
+        n = processor_cls(path, embedding_client, pinecone_index).process()
         results[path.name] = n
 
     return results

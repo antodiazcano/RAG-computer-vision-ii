@@ -119,8 +119,8 @@ class TEXProcessor(Processor):
             A list that for each chunk contains:
                 - The text of the chunk.
                 - The file where the chunk was retrieved.
-                - The section number of the chunk (as page).
-                - The total number of sections (as total_pages).
+                - The location of the retrieved chunk (section id).
+                - The total number of locations in the file (total sections).
                 - The document type of the file of the chunk.
         """
 
@@ -138,8 +138,8 @@ class TEXProcessor(Processor):
                     {
                         "text": paragraph,
                         "source": self.path.name,
-                        "page": section_id,
-                        "total_pages": total_sections,
+                        "location": section_id,
+                        "total_locations": total_sections,
                         "doc_type": "tex",
                     }
                 )

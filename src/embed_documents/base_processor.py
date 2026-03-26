@@ -8,21 +8,13 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 from google.genai import types
+from google.genai.client import Client
 from google.genai.errors import ClientError
+from pinecone.db_data.index import Index
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from src.config import config
-from src.utils import (
-    file_hash,
-    get_embedding_client,
-    get_index_vector_db,
-    load_registry,
-    save_registry,
-)
-
-
-GEN_AI_CLIENT = get_embedding_client()
-PINECONE_IDX = get_index_vector_db()
+from src.utils import file_hash, load_registry, save_registry
 
 
 class Processor(ABC):
@@ -31,19 +23,28 @@ class Processor(ABC):
     into the vector db.
     """
 
-    def __init__(self, path: Path, batch_size: int = 50) -> None:
+    def __init__(
+        self,
+        path: Path,
+        embedding_client: Client,
+        pinecone_index: Index,
+        batch_size: int = 50,
+    ) -> None:
         """
         Constructor of the class.
 
         Args:
             path: Path where the file we will embed is saved.
+            embedding_client: Gemini client used for embedding.
+            pinecone_index: Pinecone index used for upserting vectors.
             batch_size: Size of the batch to save to the vector db.
         """
 
         self.path = path
+        self._embedding_client = embedding_client
+        self._pinecone_index = pinecone_index
         self.batch_size = batch_size
 
-    @staticmethod
     @retry(
         retry=retry_if_exception(
             lambda e: isinstance(e, ClientError) and e.code == 429
@@ -52,7 +53,7 @@ class Processor(ABC):
         stop=stop_after_attempt(5),
         reraise=True,
     )
-    def _embed_text(text: str) -> list[float]:
+    def _embed_text(self, text: str) -> list[float]:
         """
         Embeds the text with the embedding model. Retries on rate limit (429) errors
         with exponential backoff.
@@ -68,7 +69,7 @@ class Processor(ABC):
                 returned).
         """
 
-        response = GEN_AI_CLIENT.models.embed_content(
+        response = self._embedding_client.models.embed_content(
             model=config.embedding_model.embedding_model,
             contents=text,
             config=types.EmbedContentConfig(
@@ -91,8 +92,8 @@ class Processor(ABC):
             A list that for each chunk contains:
                 - The text of the chunk.
                 - The file where the chunk was retrieved.
-                - The page of the retrieved chunk.
-                - The total number of pages of the file of the chunk.
+                - The location of the retrieved chunk (page number or section id).
+                - The total number of locations in the file.
                 - The document type of the file of the chunk.
         """
 
@@ -122,8 +123,8 @@ class Processor(ABC):
                     "metadata": {
                         "text": c["text"],
                         "source": c["source"],
-                        "page": c["page"],
-                        "total_pages": c["total_pages"],
+                        "location": c["location"],
+                        "total_locations": c["total_locations"],
                         "doc_type": c["doc_type"],
                     },
                 }
@@ -133,7 +134,7 @@ class Processor(ABC):
         for i in range(0, len(vectors), self.batch_size):
             batch_num = i // self.batch_size + 1
             print(f"Saving to vector db batch {batch_num} / {n_batches}...")
-            PINECONE_IDX.upsert(
+            self._pinecone_index.upsert(
                 vectors=vectors[i : i + self.batch_size]  # type: ignore
             )
 

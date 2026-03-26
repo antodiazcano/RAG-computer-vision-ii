@@ -23,23 +23,23 @@ Built with a Streamlit frontend, Pinecone vector database, Gemini embeddings, an
 ## 🏗️ Architecture
 
 ```
-User question
-     │
-     ▼
+  User question
+       │
+       ▼
 ┌──────────────┐   embed query   ┌──────────────────────┐
 │  Streamlit   │ ──────────────► │  Gemini Embeddings   │
-│  Frontend    │                 │  (768-dim)           │
-└──────┬───────┘                 └──────────┬───────────┘
+│  Frontend    │                 └──────────┬───────────┘
+└──────┬───────┘                            │
        │                                    │
        │                                    ▼
-       │                         ┌──────────────────────┐
-       │          top-k chunks   │  Pinecone Vector DB  │
-       │ ◄────────────────────── │  (AWS us-east-1)     │
+       │        top-k-chunks     ┌──────────────────────┐
+       │ ◄────────────────────── │  Pinecone Vector DB  │
        │                         └──────────────────────┘
+       │                         
        │
        ▼
 ┌──────────────────────────────┐
-│  LLM (Groq / Gemini /       │
+│  LLM (Groq / Gemini /        │
 │  OpenAI / Anthropic)         │
 │  system prompt + context +   │
 │  chat history → answer       │
@@ -67,16 +67,14 @@ User question
 │   ├── frontend.py         # Streamlit UI
 │   └── utils.py            # Hashing, registry, DB/embedding clients
 ├── tests/
-├── Makefile
-├── pyproject.toml
-└── .env
+├── ...
 ```
 
 ---
 
-## 🚀 Getting Started (to use it locally)
+## 🚀 Getting Started (to use it custom/locally)
 
-### Configuration
+### 1. Configuration
 
 Create a `.env` file in the project root:
 
@@ -85,12 +83,12 @@ GEMINI_API_KEY=<your-gemini-api-key>
 GROQ_API_KEY=<your-groq-api-key>
 
 PINECONE_API_KEY=<your-pinecone-api-key>
-PINECONE_INDEX_NAME=computer-vision-ii
-PINECONE_CLOUD=aws
-PINECONE_REGION=us-east-1
+PINECONE_INDEX_NAME=<your-pinecone-index-name>
+PINECONE_CLOUD=<your-pinecone-cloud>
+PINECONE_REGION=<your-pinecone-region>
 ```
 
-### Index Documents
+### 2. Index Documents
 
 Place your `.pdf` or `.tex` files in `data/documents/`, then run:
 
@@ -98,7 +96,7 @@ Place your `.pdf` or `.tex` files in `data/documents/`, then run:
 uv run python -m src.embed_documents.main
 ```
 
-### Launch the Chatbot
+### 3. Launch the Chatbot
 
 ```bash
 uv run streamlit run src/frontend.py
@@ -106,14 +104,6 @@ uv run streamlit run src/frontend.py
 
 ---
 
-## 📄 License
-
-[MIT](LICENSE) © 2025 Antonio Díaz-Cano
-
----
-
 # TODO
 
 1. Deploy
-
-2. Write README

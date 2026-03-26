@@ -3,118 +3,135 @@ RAG flow: embed query, retrieve relevant documents, and generate answers.
 """
 
 from google.genai import types
+from google.genai.client import Client
+from pinecone.db_data.index import Index
 
 from src.chatbot.clients import ChatClient
 from src.config import config
-from src.utils import get_embedding_client, get_index_vector_db
 
 
-EMBEDDING_CLIENT = get_embedding_client()
-PINECONE_IDX = get_index_vector_db()
-
-
-def _embed_query(question: str) -> list[float]:
+class RAGEngine:
     """
-    Embeds the question with the embedding model using the server's Gemini key.
-
-    Args:
-        question: Question to embed.
-
-    Returns:
-        Embedding of the question.
-
-    Raises:
-        RuntimeError: If the embedding response is empty.
+    Encapsulates the full RAG pipeline: embed, retrieve, generate.
     """
 
-    response = EMBEDDING_CLIENT.models.embed_content(
-        model=config.embedding_model.embedding_model,
-        contents=question,
-        config=types.EmbedContentConfig(
-            task_type="RETRIEVAL_QUERY",
-            output_dimensionality=config.embedding_model.embedding_dim,
-        ),
-    )
+    def __init__(
+        self,
+        chat_client: ChatClient,
+        model: str,
+        embedding_client: Client,
+        pinecone_index: Index,
+    ) -> None:
+        """
+        Constructor of the class.
 
-    if (not response.embeddings) or (response.embeddings[0].values is None):
-        raise RuntimeError("Embedding response is empty.")
+        Args:
+            chat_client: Chat client to use for generation.
+            model: Model name to use for generation.
+            embedding_client: Gemini client used for query embedding.
+            pinecone_index: Pinecone index used for retrieval.
+        """
 
-    return response.embeddings[0].values
+        self._chat_client = chat_client
+        self._model = model
+        self._embedding_client = embedding_client
+        self._pinecone_index = pinecone_index
 
+    def _embed_query(self, question: str) -> list[float]:
+        """
+        Embeds the question with the embedding model.
 
-def _retrieve_from_vector_db(
-    question: str, top_k: int = 3
-) -> list[dict[str, int | str | float]]:
-    """
-    Retrieves the top k chunks associated with the question.
+        Args:
+            question: Question to embed.
 
-    Args:
-        question: Question of the user.
-        top_k: Number of chunks to retrieve.
+        Returns:
+            Embedding of the question.
 
-    Returns:
-        A list that for each chunk retrieved contains:
-            - The text of the chunk.
-            - The file where the chunk was retrieved.
-            - The page of the retrieved chunk.
-            - The total number of pages of the file of the chunk.
-            - The document type of the file of the chunk.
-            - The retrieval score of the chunk.
-    """
+        Raises:
+            RuntimeError: If the embedding response is empty.
+        """
 
-    query_vector = _embed_query(question)
-    results = PINECONE_IDX.query(
-        vector=query_vector, top_k=top_k, include_metadata=True
-    )
-    return [
-        {
-            "text": m.metadata.get("text"),
-            "source": m.metadata.get("source"),
-            "page": m.metadata.get("page"),
-            "total_pages": m.metadata.get("total_pages"),
-            "doc_type": m.metadata.get("doc_type"),
-            "score": round(float(m.score), 4),
-        }
-        for m in results.matches  # type: ignore
-    ]
+        response = self._embedding_client.models.embed_content(
+            model=config.embedding_model.embedding_model,
+            contents=question,
+            config=types.EmbedContentConfig(
+                task_type="RETRIEVAL_QUERY",
+                output_dimensionality=config.embedding_model.embedding_dim,
+            ),
+        )
 
+        if (not response.embeddings) or (response.embeddings[0].values is None):
+            raise RuntimeError("Embedding response is empty.")
 
-def generate_answer(
-    question: str,
-    chat_client: ChatClient,
-    provider: str,
-    top_k: int = 3,
-    chat_history: list[dict[str, str]] | None = None,
-) -> tuple[str, list[dict[str, int | str | float]]]:
-    """
-    Generates an answer to the question of the user using RAG.
+        return response.embeddings[0].values
 
-    Args:
-        question: Question of the user.
-        chat_client: Chat client to use for generation.
-        provider: Provider name to look up the model.
-        top_k: Number of chunks to retrieve.
-        chat_history: Previous conversation turns with "role" and "content" keys.
+    def _retrieve_from_vector_db(
+        self, question: str, top_k: int = 3
+    ) -> list[dict[str, int | str | float]]:
+        """
+        Retrieves the top k chunks associated with the question.
 
-    Returns:
-        Response of the model and chunks retrieved.
-    """
+        Args:
+            question: Question of the user.
+            top_k: Number of chunks to retrieve.
 
-    chunks = _retrieve_from_vector_db(question, top_k=top_k)
-    context = "\n".join(
-        f"[{c['source']} - Section {c['page']}]: {c['text']}" for c in chunks
-    )
+        Returns:
+            A list that for each chunk retrieved contains:
+                - The text of the chunk.
+                - The file where the chunk was retrieved.
+                - The location of the retrieved chunk (page or section).
+                - The total number of locations in the file.
+                - The document type of the file of the chunk.
+                - The retrieval score of the chunk.
+        """
 
-    messages = list(chat_history or [])
-    messages.append(
-        {"role": "user", "content": f"CONTEXT:\n{context}\n\nQUESTION: {question}"}
-    )
+        query_vector = self._embed_query(question)
+        results = self._pinecone_index.query(
+            vector=query_vector, top_k=top_k, include_metadata=True
+        )
+        return [
+            {
+                "text": m.metadata.get("text"),
+                "source": m.metadata.get("source"),
+                "location": m.metadata.get("location"),
+                "total_locations": m.metadata.get("total_locations"),
+                "doc_type": m.metadata.get("doc_type"),
+                "score": round(float(m.score), 4),
+            }
+            for m in results.matches  # type: ignore
+        ]
 
-    model = config.chat_model.providers[provider]
-    answer = chat_client.chat(
-        model=model,
-        system_prompt=config.chat_model.system_prompt,
-        messages=messages,
-    )
+    def generate_answer(
+        self,
+        question: str,
+        top_k: int = 3,
+        chat_history: list[dict[str, str]] | None = None,
+    ) -> tuple[str, list[dict[str, int | str | float]]]:
+        """
+        Generates an answer to the question of the user using RAG.
 
-    return answer, chunks
+        Args:
+            question: Question of the user.
+            top_k: Number of chunks to retrieve.
+            chat_history: Previous conversation turns with "role" and "content" keys.
+
+        Returns:
+            Response of the model and chunks retrieved.
+        """
+
+        chunks = self._retrieve_from_vector_db(question, top_k=top_k)
+        context = "\n".join(
+            f"[{c['source']} - "
+            f"{'Page' if c['doc_type'] == 'pdf' else '§'} {c['location']}]: "
+            f"{c['text']}"
+            for c in chunks
+        )
+
+        messages = list(chat_history or [])
+        messages.append(
+            {"role": "user", "content": f"CONTEXT:\n{context}\n\nQUESTION: {question}"}
+        )
+
+        answer = self._chat_client.chat(model=self._model, messages=messages)
+
+        return answer, chunks
