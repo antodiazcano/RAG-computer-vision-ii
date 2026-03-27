@@ -1,6 +1,6 @@
 # 🤖 RAG — Computer Vision II
 
-A Retrieval-Augmented Generation (RAG) chatbot that lets **Computer Vision II** students ask questions about the course material and get accurate, source-cited answers.
+A Retrieval-Augmented Generation (RAG) chatbot that lets **Computer Vision II** students ask questions about the course material and get accurate, source-cited answers. The app can be accessed using [this URL](https://rag-computer-vision-ii.streamlit.app/).
 
 Built with a Streamlit frontend, Pinecone vector database, Gemini embeddings, and multi-provider LLM support.
 
