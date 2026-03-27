@@ -310,8 +310,9 @@ for msg in st.session_state.messages:
                     f"color:#e6edf3;white-space:nowrap;overflow:hidden;"
                     f"text-overflow:ellipsis'>{src['source']}</div>"
                     f"<div style='color:#8b949e;font-size:10px;margin:4px 0 8px'>"
-                    f"{'§' if src.get('doc_type') == 'tex' else 'Page'} "
-                    f"{src['location']} / {src['total_locations']}</div>"
+                    f"{'§ ' + str(src['location']) if src.get('doc_type') == 'tex'
+                       else 'Page ' + str(src['location']) + ' / '
+                       + str(src['total_locations'])}</div>"
                     f"<div style='background:#21262d;border-radius:3px;height:6px;"
                     f"overflow:hidden'>"
                     f"<div style='width:{score_pct}%;height:100%;"

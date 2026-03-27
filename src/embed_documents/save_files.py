@@ -3,8 +3,6 @@ Script with the main functions to manage the vector db: deleting vectors and ind
 documents.
 """
 
-from typing import Any
-
 from pinecone.db_data.index import Index
 
 from src.config import config
@@ -20,7 +18,7 @@ PROCESSORS = {
 
 
 def delete_vectors_by_metadata(
-    pinecone_index: Index, metadata_filter: dict[str, Any]
+    pinecone_index: Index, metadata_filter: dict[str, str | float | int]
 ) -> None:
     """
     Deletes vectors from the vector db that match the given metadata filter.
@@ -65,4 +63,5 @@ def save_all_files() -> dict[str, int]:
 
 
 if __name__ == "__main__":
+    delete_vectors_by_metadata(get_index_vector_db(), {"doc_type": "tex"})
     save_all_files()

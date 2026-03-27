@@ -81,9 +81,10 @@ class TEXProcessor(Processor):
             - The total number of top-level sections.
         """
 
-        section_pattern = re.compile(r"\\(section|subsection)\{([^}]*)\}")
+        section_pattern = re.compile(r"\\(chapter|section|subsection)\{([^}]*)\}")
 
         sections: list[tuple[str, str]] = []
+        chap_num = 0
         sec_num = 0
         subsec_num = 0
         last_pos = 0
@@ -94,13 +95,19 @@ class TEXProcessor(Processor):
             if text_before.strip():
                 sections.append((current_section_id, text_before))
 
-            if match.group(1) == "section":
+            level = match.group(1)
+            if level == "chapter":
+                chap_num += 1
+                sec_num = 0
+                subsec_num = 0
+                current_section_id = str(chap_num)
+            elif level == "section":
                 sec_num += 1
                 subsec_num = 0
-                current_section_id = str(sec_num)
+                current_section_id = f"{chap_num}.{sec_num}"
             else:
                 subsec_num += 1
-                current_section_id = f"{sec_num}.{subsec_num}"
+                current_section_id = f"{chap_num}.{sec_num}.{subsec_num}"
 
             last_pos = match.end()
 
@@ -108,7 +115,7 @@ class TEXProcessor(Processor):
         if remaining.strip():
             sections.append((current_section_id, remaining))
 
-        return sections, sec_num
+        return sections, chap_num
 
     def _obtain_chunks(self) -> list[dict[str, str | int]]:
         """
