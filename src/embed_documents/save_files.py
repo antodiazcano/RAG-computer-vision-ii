@@ -63,5 +63,5 @@ def save_all_files() -> dict[str, int]:
 
 
 if __name__ == "__main__":
-    delete_vectors_by_metadata(get_index_vector_db(), {"doc_type": "tex"})
+    # delete_vectors_by_metadata(get_index_vector_db(), {"doc_type": "tex"})
     save_all_files()
