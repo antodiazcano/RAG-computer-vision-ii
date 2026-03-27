@@ -23,27 +23,13 @@ Built with a Streamlit frontend, Pinecone vector database, Gemini embeddings, an
 ## 🏗️ Architecture
 
 ```
-  User question
-       │
-       ▼
-┌──────────────┐   embed query   ┌──────────────────────┐
-│  Streamlit   │ ──────────────► │  Gemini Embeddings   │
-│  Frontend    │                 └──────────┬───────────┘
-└──────┬───────┘                            │
-       │                                    │
-       │                                    ▼
-       │        top-k-chunks     ┌──────────────────────┐
-       │ ◄────────────────────── │  Pinecone Vector DB  │
-       │                         └──────────────────────┘
-       │                         
-       │
-       ▼
-┌──────────────────────────────┐
-│  LLM (Groq / Gemini /        │
-│  OpenAI / Anthropic)         │
-│  system prompt + context +   │
-│  chat history → answer       │
-└──────────────────────────────┘
+mermaid
+flowchart TD
+    A["🧑 User question"] --> B["Streamlit Frontend"]
+    B -- embed query --> C["Gemini Embeddings"]
+    C --> D["Pinecone Vector DB"]
+    D -- top-k chunks --> B
+    B --> E["LLM (Groq / Gemini / OpenAI / Anthropic)\nsystem prompt + context + chat history → answer"]
 ```
 
 ---
