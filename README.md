@@ -22,14 +22,27 @@ Built with a Streamlit frontend, Pinecone vector database, Gemini embeddings, an
 
 ## 🏗️ Architecture
 
-```
-mermaid
+```mermaid
 flowchart TD
-    A["🧑 User question"] --> B["Streamlit Frontend"]
-    B -- embed query --> C["Gemini Embeddings"]
-    C --> D["Pinecone Vector DB"]
-    D -- top-k chunks --> B
-    B --> E["LLM (Groq / Gemini / OpenAI / Anthropic)\nsystem prompt + context + chat history → answer"]
+    %% Styles
+    classDef user fill:#E3F2FD,stroke:#1E88E5,stroke-width:2px,color:#0D47A1;
+    classDef frontend fill:#E8F5E9,stroke:#43A047,stroke-width:2px,color:#1B5E20;
+    classDef model fill:#FFF3E0,stroke:#FB8C00,stroke-width:2px,color:#E65100;
+    classDef db fill:#F3E5F5,stroke:#8E24AA,stroke-width:2px,color:#4A148C;
+
+    %% Nodes
+    A["🧑 User Question"]:::user
+    B["🌐 Streamlit Frontend"]:::frontend
+    C["🔎 Gemini Embeddings"]:::model
+    D["📦 Pinecone Vector DB"]:::db
+    E["🧠 LLM<br>(System Prompt + RAG Context + Chat History)<br>➡️ Answer"]:::model
+
+    %% Flow
+    A --> B
+    B -- "Embed query" --> C
+    C --> D
+    D -- "Top-K relevant chunks" --> B
+    B --> E
 ```
 
 ---
