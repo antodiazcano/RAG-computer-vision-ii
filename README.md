@@ -101,11 +101,3 @@ uv run python -m src.embed_documents.main
 ```bash
 uv run streamlit run src/frontend.py
 ```
-
----
-
-# TODO
-
-1. Hacer tests a save_documents
-
-2. Deploy

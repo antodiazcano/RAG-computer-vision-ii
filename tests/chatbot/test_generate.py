@@ -12,7 +12,12 @@ from src.config import config
 
 
 def _make_match(
-    text: str, source: str, location: int, total_locations: int, doc_type: str, score: float
+    text: str,
+    source: str,
+    location: int,
+    total_locations: int,
+    doc_type: str,
+    score: float,
 ) -> MagicMock:
     """Creates a mock Pinecone match object with the given metadata and score."""
     m = MagicMock()
@@ -32,7 +37,8 @@ def _make_engine(
     matches: list[MagicMock] | None = None,
     chat_response: str = "answer",
 ) -> tuple[RAGEngine, MagicMock, MagicMock, MagicMock]:
-    """Creates a RAGEngine with mocked dependencies and returns it along with the mocks."""
+    """Creates a RAGEngine with mocked dependencies and returns it along with the
+    mocks."""
     embedding_client = MagicMock()
     mock_embedding = MagicMock()
     mock_embedding.values = embedding_values or [0.1, 0.2]

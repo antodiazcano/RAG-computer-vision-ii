@@ -78,7 +78,10 @@ class TestExtractBody:
 
     def test_removes_preamble(self) -> None:
         """Checks that everything before begin document is removed."""
-        content = "\\documentclass{article}\n\\usepackage{amsmath}\n\\begin{document}\nBody.\n\\end{document}"
+        content = (
+            "\\documentclass{article}\n\\usepackage{amsmath}\n\\begin{document}\nBody."
+            "\n\\end{document}"
+        )
         result = TEXProcessor._extract_body(content)
         assert "documentclass" not in result
         assert "usepackage" not in result
@@ -99,7 +102,8 @@ class TestExtractBody:
         assert "Some raw content." in result
 
     def test_no_end_document(self) -> None:
-        """Checks that content without end document is returned after preamble removal."""
+        """Checks that content without end document is returned after preamble
+        removal."""
         content = "\\begin{document}\nBody without end."
         result = TEXProcessor._extract_body(content)
         assert "Body without end." in result
@@ -137,7 +141,10 @@ class TestSplitIntoSections:
 
     def test_subsections(self) -> None:
         """Checks that subsections are numbered as section.subsection."""
-        content = "\n\\section{Main}\nIntro.\n\\subsection{A}\nSub A.\n\\subsection{B}\nSub B.\n"
+        content = (
+            "\n\\section{Main}\nIntro.\n\\subsection{A}\nSub A.\n\\subsection{B}\nSub "
+            "B.\.\n"
+        )
         sections, total = TEXProcessor._split_into_sections(content)
 
         assert total == 1
@@ -213,7 +220,9 @@ class TestObtainChunks:
             "Methods paragraph.\n"
             "\\end{document}\n"
         )
-        proc = TEXProcessor(self._write_tex(tmp_path, content), MagicMock(), MagicMock())
+        proc = TEXProcessor(
+            self._write_tex(tmp_path, content), MagicMock(), MagicMock()
+        )
         chunks = proc._obtain_chunks()
 
         assert len(chunks) == 3
@@ -238,7 +247,9 @@ class TestObtainChunks:
             "Sub B text.\n"
             "\\end{document}\n"
         )
-        proc = TEXProcessor(self._write_tex(tmp_path, content), MagicMock(), MagicMock())
+        proc = TEXProcessor(
+            self._write_tex(tmp_path, content), MagicMock(), MagicMock()
+        )
         chunks = proc._obtain_chunks()
 
         assert len(chunks) == 3
@@ -252,9 +263,12 @@ class TestObtainChunks:
             "The formula $E = mc^2$ is important.\n"
             "\\end{document}\n"
         )
-        proc = TEXProcessor(self._write_tex(tmp_path, content), MagicMock(), MagicMock())
+        proc = TEXProcessor(
+            self._write_tex(tmp_path, content), MagicMock(), MagicMock()
+        )
         chunks = proc._obtain_chunks()
 
+        assert isinstance(chunks[0]["text"], str)
         assert "$E = mc^2$" in chunks[0]["text"]
 
     def test_sets_correct_source(self, tmp_path: Path) -> None:
@@ -270,9 +284,12 @@ class TestObtainChunks:
     def test_empty_document(self, tmp_path: Path) -> None:
         """Checks that a document with no content returns no chunks."""
         content = "\\begin{document}\n\\end{document}\n"
-        proc = TEXProcessor(self._write_tex(tmp_path, content), MagicMock(), MagicMock())
+        proc = TEXProcessor(
+            self._write_tex(tmp_path, content), MagicMock(), MagicMock()
+        )
 
-        assert proc._obtain_chunks() == []
+        lst = proc._obtain_chunks()
+        assert isinstance(lst, list) and len(lst) == 0
 
     def test_skips_empty_paragraphs(self, tmp_path: Path) -> None:
         """Checks that empty paragraphs after stripping are not included."""
@@ -284,7 +301,11 @@ class TestObtainChunks:
             "More text.\n"
             "\\end{document}\n"
         )
-        proc = TEXProcessor(self._write_tex(tmp_path, content), MagicMock(), MagicMock())
+        proc = TEXProcessor(
+            self._write_tex(tmp_path, content), MagicMock(), MagicMock()
+        )
         chunks = proc._obtain_chunks()
 
-        assert all(c["text"].strip() for c in chunks)
+        for c in chunks:
+            assert isinstance(c["text"], str)
+            assert c["text"].strip()

@@ -116,7 +116,6 @@ class TestProcess:
         self,
         mock_load_reg: MagicMock,
         mock_hash: MagicMock,
-        mock_save_reg: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Checks that the number of processed chunks is returned."""
@@ -162,7 +161,6 @@ class TestProcess:
         self,
         mock_load_reg: MagicMock,
         mock_hash: MagicMock,
-        mock_save_reg: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Checks that vectors are upserted with correct values and metadata."""
@@ -189,7 +187,6 @@ class TestProcess:
         self,
         mock_load_reg: MagicMock,
         mock_hash: MagicMock,
-        mock_save_reg: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Checks that vectors are upserted in batches of the configured size."""

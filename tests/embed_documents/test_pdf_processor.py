@@ -69,7 +69,7 @@ class TestObtainChunks:
         proc = PDFProcessor(Path("doc.pdf"), MagicMock(), MagicMock())
         chunks = proc._obtain_chunks()
 
-        assert chunks == []
+        assert isinstance(chunks, list) and len(chunks) == 0
 
     @patch("src.embed_documents.pdf_processor.fitz.open")
     def test_sets_correct_metadata(self, mock_fitz_open: MagicMock) -> None:
@@ -90,4 +90,4 @@ class TestObtainChunks:
         proc = PDFProcessor(Path("empty.pdf"), MagicMock(), MagicMock())
         chunks = proc._obtain_chunks()
 
-        assert chunks == []
+        assert isinstance(chunks, list) and len(chunks) == 0

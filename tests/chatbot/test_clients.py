@@ -2,8 +2,6 @@
 Tests for src/chatbot/clients.py
 """
 
-from unittest.mock import MagicMock
-
 import pytest
 
 from src.chatbot.clients import (
@@ -29,7 +27,8 @@ class TestCreateChatClient:
         assert isinstance(client, OpenAIChat)
 
     def test_creates_anthropic_client(self) -> None:
-        """Checks that an AnthropicChat instance is created for the Anthropic provider."""
+        """Checks that an AnthropicChat instance is created for the Anthropic
+        provider."""
         client = create_chat_client("Anthropic", "fake-key")
         assert isinstance(client, AnthropicChat)
 
