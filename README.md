@@ -34,15 +34,15 @@ flowchart TD
     A["🧑 User Question"]:::user
     B["🌐 Streamlit Frontend"]:::frontend
     C["🔎 Gemini Embeddings"]:::model
-    D["📦 Pinecone Vector DB"]:::db
+    D[("📦 Pinecone Vector DB")]:::db
     E["🧠 LLM<br>(System Prompt + RAG Context + Chat History)<br>➡️ Answer"]:::model
 
     %% Flow
-    A --> B
-    B -- "Embed query" --> C
-    C --> D
-    D -- "Top-K relevant chunks" --> B
-    B --> E
+    A -->|"1"| B
+    B -->|"2 · Embed query"| C
+    C -->|"3"| D
+    D -->|"4 · Top-K relevant chunks"| B
+    B -->|"5"| E
 ```
 
 ---
