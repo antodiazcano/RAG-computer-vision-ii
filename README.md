@@ -33,16 +33,18 @@ flowchart TD
     %% Nodes
     A["🧑 User Question"]:::user
     B["🌐 Streamlit Frontend"]:::frontend
+    E["🧠 LLM<br>(decides if RAG is needed)"]:::model
     C["🔎 Gemini Embeddings"]:::model
     D[("📦 Pinecone Vector DB")]:::db
-    E["🧠 LLM<br>(System Prompt + RAG Context + Chat History)<br>➡️ Answer"]:::model
 
     %% Flow
     A -->|"1"| B
-    B -->|"2 · Embed query"| C
-    C -->|"3"| D
-    D -->|"4 · Top-K relevant chunks"| B
-    B -->|"5"| E
+    B -->|"2"| E
+    E -->|"3a · Tool call"| C
+    C -->|"4"| D
+    D -->|"5 · Top-K chunks"| E
+    E -->|"3b · Direct answer"| B
+    E -->|"6 · Answer with sources"| B
 ```
 
 ---
