@@ -69,12 +69,15 @@ class TEXProcessor(Processor):
         return content
 
     @staticmethod
-    def _split_into_sections(content: str) -> tuple[list[tuple[str, str]], int]:
+    def _split_into_sections(
+        content: str, chap_offset: int = 0
+    ) -> tuple[list[tuple[str, str]], int]:
         """
         Splits the document body into sections, tracking section/subsection numbering.
 
         Args:
             content: Document body (after preamble removal).
+            chap_offset: Offset to add to chapter numbers (e.g. 4 for chapter_5.tex).
 
         Returns:
             - A list of (section_id, raw_text) pairs.
@@ -100,14 +103,14 @@ class TEXProcessor(Processor):
                 chap_num += 1
                 sec_num = 0
                 subsec_num = 0
-                current_section_id = str(chap_num)
+                current_section_id = str(chap_num + chap_offset)
             elif level == "section":
                 sec_num += 1
                 subsec_num = 0
-                current_section_id = f"{chap_num}.{sec_num}"
+                current_section_id = f"{chap_num + chap_offset}.{sec_num}"
             else:
                 subsec_num += 1
-                current_section_id = f"{chap_num}.{sec_num}.{subsec_num}"
+                current_section_id = f"{chap_num + chap_offset}.{sec_num}.{subsec_num}"
 
             last_pos = match.end()
 
@@ -117,10 +120,57 @@ class TEXProcessor(Processor):
 
         return sections, chap_num
 
+    @staticmethod
+    def extract_toc(path: Path) -> list[dict[str, str]]:
+        """
+        Extracts the table of contents (chapter/section/subsection) from a LaTeX file.
+
+        Args:
+            path: Path to the .tex file.
+
+        Returns:
+            A list of dicts with 'level' (chapter/section/subsection), 'id', and
+            'name' for each heading.
+        """
+
+        content = path.read_text(encoding="utf-8")
+        body = TEXProcessor._extract_body(content)
+        pattern = re.compile(r"\\(chapter|section|subsection)\{([^}]*)\}")
+
+        # Extract real chapter number from filename (e.g. chapter_5.tex -> offset 4)
+        file_match = re.search(r"(\d+)", path.stem)
+        chap_offset = int(file_match.group(1)) - 1 if file_match else 0
+
+        toc: list[dict[str, str]] = []
+        chap_num = 0
+        sec_num = 0
+        subsec_num = 0
+
+        for match in pattern.finditer(body):
+            level = match.group(1)
+            name = match.group(2).strip()
+
+            if level == "chapter":
+                chap_num += 1
+                sec_num = 0
+                subsec_num = 0
+                section_id = str(chap_num + chap_offset)
+            elif level == "section":
+                sec_num += 1
+                subsec_num = 0
+                section_id = f"{chap_num + chap_offset}.{sec_num}"
+            else:
+                subsec_num += 1
+                section_id = f"{chap_num + chap_offset}.{sec_num}.{subsec_num}"
+
+            toc.append({"level": level, "id": section_id, "name": name})
+
+        return toc
+
     def _obtain_chunks(self) -> list[dict[str, str | int]]:
         """
-        Obtains the chunks from a LaTeX file. One chunk per paragraph, tracking
-        section and subsection numbering.
+        Obtains the chunks from a LaTeX file. One chunk per paragraph, tracking section
+        and subsection numbering.
 
         Returns:
             A list that for each chunk contains:
@@ -133,7 +183,11 @@ class TEXProcessor(Processor):
 
         content = Path(self.path).read_text(encoding="utf-8")
         body = self._extract_body(content)
-        sections, total_sections = self._split_into_sections(body)
+
+        file_match = re.search(r"(\d+)", self.path.stem)
+        chap_offset = int(file_match.group(1)) - 1 if file_match else 0
+
+        sections, total_sections = self._split_into_sections(body, chap_offset)
 
         chunks: list[dict[str, str | int]] = []
         for section_id, raw_text in sections:

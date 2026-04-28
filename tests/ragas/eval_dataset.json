@@ -1,0 +1,82 @@
+[
+  {
+    "question": "What are the key innovations introduced by ResNet?",
+    "ground_truth": "ResNet introduced residual connections (skip connections) to ease training of very deep networks, enabling networks with over 100 layers without performance degradation, and significantly improving accuracy and efficiency for computer vision tasks."
+  },
+  {
+    "question": "What is transfer learning and when is it useful?",
+    "ground_truth": "Transfer learning is a technique where a model developed for one task is reused as the starting point for a different but related task. It is useful when you have limited data for your target task or when training a large model from scratch would be too expensive."
+  },
+  {
+    "question": "What is Intersection over Union (IoU) in object detection?",
+    "ground_truth": "IoU is the ratio of the intersection area to the union area of two bounding boxes. It measures the similarity between a predicted bounding box and the ground-truth bounding box. The range is between 0 (no overlap) and 1 (identical boxes)."
+  },
+  {
+    "question": "How does Non-Maximum Suppression (NMS) work?",
+    "ground_truth": "NMS sorts predicted bounding boxes by confidence in descending order. It selects the highest confidence box, removes all boxes with IoU exceeding a threshold, and repeats until all boxes are processed. This merges similar overlapping predictions for the same object."
+  },
+  {
+    "question": "What is the main difference between R-CNN and Fast R-CNN?",
+    "ground_truth": "The main difference is that R-CNN performs independent CNN forward propagation for each region proposal, while Fast R-CNN performs the CNN forward propagation only once on the entire image and then extracts features for each region proposal from the shared feature map using RoI pooling."
+  },
+  {
+    "question": "How does the YOLO algorithm work?",
+    "ground_truth": "YOLO divides the image into an S×S grid. Each grid cell predicts B bounding boxes with confidence scores and C class probabilities. The output is a S×S×(5B+C) tensor. If the center of an object falls into a grid cell, that cell is responsible for detecting it. NMS is applied to the final predictions."
+  },
+  {
+    "question": "What is a transposed convolution and why is it used in semantic segmentation?",
+    "ground_truth": "A transposed convolution is an operation that increases (upsamples) the spatial dimensions of feature maps. It is used in semantic segmentation to restore the spatial resolution that was reduced by convolutional and pooling layers, so that the output has the same dimensions as the input image for pixel-level classification."
+  },
+  {
+    "question": "What is the key feature of U-Net architecture?",
+    "ground_truth": "The key feature of U-Net is skip connections that link encoder layers with corresponding decoder layers by concatenating activation maps. This allows the decoder to use both global information from the encoder and original local details, producing accurate segmentations even with limited training data."
+  },
+  {
+    "question": "What are the three components of the style transfer loss function?",
+    "ground_truth": "The style transfer loss function consists of: content loss (makes the synthesized image close to the content image in content features), style loss (makes the synthesized image close to the style image in style features using Gram matrices), and total variation loss (reduces noise in the synthesized image)."
+  },
+  {
+    "question": "What is a depth map in 3D computer vision?",
+    "ground_truth": "A depth map is a 2D representation where each pixel stores the distance between the camera and objects in the scene. Small values represent points close to the camera and large values indicate points farther away. It is key for tasks like scene reconstruction and autonomous navigation."
+  },
+  {
+    "question": "What is the Chamfer distance and what are its properties?",
+    "ground_truth": "The Chamfer distance measures the similarity between two point clouds by computing, for each point in one set, the squared distance to the nearest point in the other set, and averaging both directions. It is symmetric, zero for equal sets, differentiable, does not need point correspondences, and can be applied to any shape representation."
+  },
+  {
+    "question": "How do SlowFast networks work for video classification?",
+    "ground_truth": "SlowFast networks process video in two parallel streams: a Slow pathway that processes fewer frames with deep 3D convolutions for rich semantic information, and a Fast pathway that processes many more frames with a lighter network for rapid dynamics. Both paths are periodically merged to combine slow context with fast detail."
+  },
+  {
+    "question": "What is a saliency map in the context of explainability?",
+    "ground_truth": "A saliency map shows which pixels in an image are most relevant to a neural network's decision. It is computed as the absolute value of the maximum gradient of the output for a class with respect to each input pixel along the channels dimension. High values indicate pixels the model is sensitive to."
+  },
+  {
+    "question": "What is the difference between SHAP and occlusion methods?",
+    "ground_truth": "SHAP uses game theory (Shapley values) to assign each region a fair contribution by considering all possible combinations of visible/hidden regions with weighted averages. Occlusion systematically masks patches one at a time and measures the change in prediction. SHAP provides theoretically grounded attributions while occlusion is simpler but less principled."
+  },
+  {
+    "question": "What is Grad-CAM and how does it generalize CAM?",
+    "ground_truth": "Grad-CAM generates class activation maps for any CNN by computing gradients of the class output with respect to the activation maps of a convolutional layer, averaging them spatially to get per-channel weights, and combining the activation maps with these weights through a ReLU. Unlike CAM, it does not require a specific architecture with GAP followed by a linear layer."
+  },
+  {
+    "question": "What is the ROAR metric for evaluating explainability?",
+    "ground_truth": "ROAR (RemOve And Retrain) evaluates explainability by removing the most important pixels according to an explanation, retraining the model from scratch on the corrupted data, and measuring the accuracy drop. If the explanation is good, the retrained model should perform worse because crucial information was removed."
+  },
+  {
+    "question": "What are the four fine-tuning scenarios based on dataset size and similarity?",
+    "ground_truth": "The four scenarios are: 1) Large similar dataset: fine-tune some or all layers. 2) Large dissimilar dataset: fine-tune all layers or train from scratch. 3) Small similar dataset: freeze backbone and train only the last layer or use it as feature extractor. 4) Small dissimilar dataset: extract features from intermediate layers or try another strategy like few-shot learning."
+  },
+  {
+    "question": "What is the scale-invariant loss used for depth prediction?",
+    "ground_truth": "The scale-invariant loss measures the mean squared logarithmic error between predicted and ground truth depth, minus a term that compensates for constant shifts in scale. When lambda=1, multiplying all predictions by a constant factor does not change the loss, making it invariant to absolute scale."
+  },
+  {
+    "question": "What problem does Integrated Gradients solve compared to standard saliency maps?",
+    "ground_truth": "Integrated Gradients solves the problem of saturated gradients, where important pixels can have small or zero gradients due to ReLU activations. It integrates gradients along a path from a baseline (e.g., black image) to the original image, providing more robust attributions that satisfy the completeness axiom."
+  },
+  {
+    "question": "What are the limitations of the YOLO algorithm?",
+    "ground_truth": "YOLO's limitations are: 1) It cannot correctly classify multiple objects of different classes in one grid cell, as it only predicts one class per cell. 2) It can detect at most B objects per cell, struggling with small grouped objects like flocks of birds. 3) Despite using square root in the loss, it treats errors similarly in small vs large bounding boxes."
+  }
+]

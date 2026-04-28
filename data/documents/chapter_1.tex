@@ -1,0 +1,195 @@
+\chapter{Introduction}
+
+make a simple introduction
+
+\section{Computer Vision Concepts}
+
+\subsection{Review of Convolutional Networks}
+
+explicar como funcionan.
+
+\subsection{Features Along the Network}
+
+A convolutional neural network (CNN) processes an image hierarchically, extracting increasingly abstract representations as we move through its layers. This architecture partially mimics the functioning of the human brain's visual cortex, where the first neurons detect simple edges and subsequent layers respond to more complex patterns.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.26]{images/chapter_1/features}
+\caption{Different layers capture different features.}
+\end{figure}
+
+In the \textbf{first layers}, convolutions learn very \textbf{local and simple features}: basic edges, corners, textures, and colors. These filters act as generic shape detectors, responding to patterns such as horizontal, vertical, or diagonal lines. Spatial information is largely preserved, and the features have a clear visual meaning.
+
+In \textbf{intermediate layers}, the features are combined and begin to represent \textbf{more complex parts}, such as curves, specific textures, or combinations of edges that can correspond to parts of objects (eyes, wheels, leaves, etc.). At this point, the activated patterns become more dependent on the semantic content of the image.
+
+Finally, in the \textbf{deep layers}, activations correspond to \textbf{high-level, highly abstract features}, which can be specialized to detect entire objects or even specific classes. These representations are no longer easily visualized or directly interpretable by humans, but they encapsulate the relevant information the model needs to classify or recognize what is in the image.
+
+This progression, from simple to complex, is key to understanding both the power and difficulty of explaining CNNs. While the first features can be easily interpreted visually, those in the deep layers require more sophisticated visualization and attribution techniques to understand their function.
+
+hablar de lo del campo de vision, que la primera capa ve $n$ píxeles, la segunda $n^2$... por eso al principio detalles mas finos y luego mas a alto nivel, vamos, el tipico parrafo que he puesto en el tema 3 tambien y la foto esa.
+
+\subsection{Data Augmentation}
+
+\subsection{Good PyTorch Practices}
+
+datasets de torch, dataloaders, datasets robustos... como en el curso de deeplearningai
+
+\section{Computer Vision Architectures}
+
+\subsection{Dummy CNN}
+
+explain typical CNN + MLP.
+
+\subsection{AlexNet}
+
+\textbf{AlexNet} is a deep convolutional neural network introduced in 2012 for image classification (ImageNet). It consists of 5 convolutional layers followed by 3 fully connected layers. ReLU is used always as the activation function.
+
+Key innovations:
+\begin{itemize}
+    \item Use of ReLU activations for faster convergence, avoiding vanishing gradients.
+    \item Introduction of dropout to reduce overfitting.
+    \item Applied data augmentation for improved generalization, enhancing scale and rotation invariance.
+    
+\end{itemize}
+
+
+\subsection{VGGNet}
+
+\textbf{VGGNet} is a deep convolutional neural network introduced in 2014. It is known for using small \(3 \times 3\) convolution filters and a very deep architecture.
+
+Key innovations:
+\begin{itemize}
+    \item Use of very small \(3 \times 3\) convolution filters throughout the network.  
+    \item Deep architecture (up to 19 layers in VGG-19), while maintaining computational efficiency.
+    \item Homogeneous design that simplifies implementation and transfer learning.  
+\end{itemize}
+
+\subsection{GoogLeNet}
+
+\textbf{GoogLeNet} is a very deep neural network introduced in 2014 and composed of three main sections: the convolutions, the inception modules and the output. The name ``inception'' comes from the meme ``we need to go deeper'' from the movie Inception.
+
+Key innovations:
+\begin{itemize}
+    \item Introduction of the Inception module for efficient multi-scale feature extraction.  
+    \item Use of $1\times 1$ convolutions for dimensionality reduction.  
+    \item Auxiliary classifiers to combat vanishing gradients.  
+    \item Replacement of fully connected layers with global average pooling to reduce parameters.
+\end{itemize}
+
+\subsection{ResNet}
+
+\textbf{ResNet} (Residual Network) is also a very deep neural network, but introduced in 2015, and that revolutionized deep networks with the idea of residual connections or skip connections to solve the degradation problem in very deep networks.
+
+Key innovations:
+\begin{itemize}
+    \item Introduction of residual connections to ease training of very deep networks.  
+    \item Enables building networks with over 100 layers without performance degradation.  
+    \item Significant improvement in accuracy and efficiency for computer vision tasks.
+\end{itemize}
+
+\subsection{DenseNet}
+
+\textbf{DenseNet} (Densely Connected Convolutional Networks) is another type of deep neural network, introduced in 2017, that connects each layer to every other layer in a feed-forward fashion, improving information and gradient flow throughout the network.
+
+Key innovations:
+\begin{itemize}
+    \item Dense connectivity: each layer receives inputs from all previous layers, enhancing feature reuse and reducing vanishing gradients.
+    \item More parameter-efficient than traditional networks despite increased depth.
+    \item Improves accuracy while requiring fewer parameters.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.49\textwidth}
+        \centering
+        \includegraphics[scale=1.2]{images/chapter_1/alexnet}
+        \caption{AlexNet.}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.49\textwidth}
+        \centering
+        \includegraphics[scale=0.35]{images/chapter_1/vggnet}
+        \caption{VGGNet.}
+    \end{minipage}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.65]{images/chapter_1/inception.jpg}
+\caption{Inception module: naive version (left) and with dimensionality reduction along the channels dimension (right).}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.35]{images/chapter_1/resnet}
+\caption{Residual module.}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.43]{images/chapter_1/densenet}
+\caption{Example of DenseNet and a dense module.}
+\end{figure}
+
+\section{Transfer Learning}
+
+\subsection{Transfering Knowledge}
+
+\textbf{Transfer learning} is a machine learning technique where a model developed for one task is reused as the starting point for a different but related task. Instead of training a model from scratch, you take a pre-trained model (usually trained on a large dataset) and fine-tune it or use it as a feature extractor for your specific problem.
+
+This approach is especially useful when you have limited data for your target task or if training a large model from scratch would be too expensive. In deep learning, it is common in computer vision and natural language processing because pre-trained models capture general patterns (like edges in images or grammar in text) that can be adapted to new tasks.
+
+\subsection{Fine-tuning}
+
+In practice, neural networks are seldom trained completely from scratch (i.e., with random initialization). Instead, one typically builds upon weights obtained from prior training. You can either use the pretrained model as a fixed feature extractor (appending a separate classifier) or you can replace the final layer with a new linear classifier (adjusting its size to the new number of target classes) and resume training. In this case you, can fine-tune all or just some of its layers.
+
+\noindent
+Depending on the size of the new dataset and its similarity to the original training data, broadly four scenarios can be distinguished:
+
+\begin{itemize}
+    \item \textbf{Large, similar dataset.} In this scenario, you can start just train the last (task-specific) layer. If data resources permits, you can gradually unfreeze previous layers as training stabilizes
+   
+    \item \textbf{Large, dissimilar dataset.} Here, you can fine‑tune every layer of the pretrained model, but if the new domain (e.g., medical imaging vs. ImageNet) truly diverges, the original weights may offer limited benefit. If compute and data resources permit, consider training from scratch on a more closely related dataset. This can sometimes converge faster than heavy fine‑tuning of mismatched weights. 
+
+    \item \textbf{Small, similar dataset.} In this case, you typically freeze the pretrained network and train only the last layer. Alternatively, you can use the frozen backbone as a feature extractor and train an external classifier.
+
+    \item \textbf{Small, dissimilar dataset.} In this situation, the pretrained representations may not align with the new domain. A possible starting point is to freeze the backbone and extract features from intermediate layers to determine if the learned features adapt to the new data. As an alternative, you can consider other strategies such as few-shot learning.
+
+\end{itemize}
+
+\begin{table}[h]
+\centering
+\setlength{\extrarowheight}{5pt}
+\label{tab:transfer_learning}
+        \begin{tabular}{|>{\raggedright\arraybackslash}m{1.3cm}
+            |>{\raggedright\arraybackslash}m{4.5cm}
+            |>{\raggedright\arraybackslash}m{4.5cm}|}
+            \hline
+                & \textbf{Similar dataset} & \textbf{Different dataset} \\
+            \hline
+                \textbf{A lot of data} & Finetune some or all model layers & Either finetune all model layers or train from scratch! \\
+            \hline
+                \textbf{Little data} & Use linear classifier on final layer or use the backbone as feature extractor & (Bad scenario) Extract features from intermediate layers or try another model/strategy \\          
+            \hline
+        \end{tabular}
+    
+\caption{Transfer Learning Strategy Selection Guide}
+\end{table}
+
+\subsection{Fine-tuning Techniques}
+
+include some subsections with different techniques.
+
+
+
+
+
+\section{Exercises}
+
+\question{}{
+Create a table comparing all the famous architectures seen in this chapter.
+}
+
+\question{}{
+Load a pretrained model and fine-tune it in the MNIST dataset.
+}

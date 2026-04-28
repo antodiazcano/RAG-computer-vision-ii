@@ -114,7 +114,10 @@ class Processor(ABC):
         chunks = self._obtain_chunks()
 
         vectors: list[dict[str, str | list[float] | dict[str, int | str]]] = []
-        for c in chunks:
+        n_batches = (len(chunks) + self.batch_size - 1) // self.batch_size
+        for i, c in enumerate(chunks):
+            if i % self.batch_size == 0:
+                print(f"Embedding batch {i // self.batch_size + 1} / {n_batches}...")
             vec_id = str(uuid.uuid4())
             vectors.append(
                 {
@@ -130,7 +133,6 @@ class Processor(ABC):
                 }
             )
 
-        n_batches = (len(vectors) + self.batch_size - 1) // self.batch_size
         for i in range(0, len(vectors), self.batch_size):
             batch_num = i // self.batch_size + 1
             print(f"Saving to vector db batch {batch_num} / {n_batches}...")

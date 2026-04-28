@@ -1,0 +1,572 @@
+[
+  {
+    "source": "chapter_1.tex",
+    "toc": [
+      {
+        "level": "chapter",
+        "id": "1",
+        "name": "Introduction"
+      },
+      {
+        "level": "section",
+        "id": "1.1",
+        "name": "Computer Vision Concepts"
+      },
+      {
+        "level": "subsection",
+        "id": "1.1.1",
+        "name": "Review of Convolutional Networks"
+      },
+      {
+        "level": "subsection",
+        "id": "1.1.2",
+        "name": "Features Along the Network"
+      },
+      {
+        "level": "subsection",
+        "id": "1.1.3",
+        "name": "Data Augmentation"
+      },
+      {
+        "level": "subsection",
+        "id": "1.1.4",
+        "name": "Good PyTorch Practices"
+      },
+      {
+        "level": "section",
+        "id": "1.2",
+        "name": "Computer Vision Architectures"
+      },
+      {
+        "level": "subsection",
+        "id": "1.2.1",
+        "name": "Dummy CNN"
+      },
+      {
+        "level": "subsection",
+        "id": "1.2.2",
+        "name": "AlexNet"
+      },
+      {
+        "level": "subsection",
+        "id": "1.2.3",
+        "name": "VGGNet"
+      },
+      {
+        "level": "subsection",
+        "id": "1.2.4",
+        "name": "GoogLeNet"
+      },
+      {
+        "level": "subsection",
+        "id": "1.2.5",
+        "name": "ResNet"
+      },
+      {
+        "level": "subsection",
+        "id": "1.2.6",
+        "name": "DenseNet"
+      },
+      {
+        "level": "section",
+        "id": "1.3",
+        "name": "Transfer Learning"
+      },
+      {
+        "level": "subsection",
+        "id": "1.3.1",
+        "name": "Transfering Knowledge"
+      },
+      {
+        "level": "subsection",
+        "id": "1.3.2",
+        "name": "Fine-tuning"
+      },
+      {
+        "level": "subsection",
+        "id": "1.3.3",
+        "name": "Fine-tuning Techniques"
+      },
+      {
+        "level": "section",
+        "id": "1.4",
+        "name": "Exercises"
+      }
+    ]
+  },
+  {
+    "source": "chapter_2.tex",
+    "toc": [
+      {
+        "level": "chapter",
+        "id": "2",
+        "name": "Object Detection"
+      },
+      {
+        "level": "section",
+        "id": "2.1",
+        "name": "Introduction"
+      },
+      {
+        "level": "subsection",
+        "id": "2.1.1",
+        "name": "Definition of the Problem"
+      },
+      {
+        "level": "subsection",
+        "id": "2.1.2",
+        "name": "Detecting a Single Object"
+      },
+      {
+        "level": "subsection",
+        "id": "2.1.3",
+        "name": "Naive Approach"
+      },
+      {
+        "level": "section",
+        "id": "2.2",
+        "name": "Previous Concepts"
+      },
+      {
+        "level": "subsection",
+        "id": "2.2.1",
+        "name": "Intersection over Union (IoU)"
+      },
+      {
+        "level": "subsection",
+        "id": "2.2.2",
+        "name": "Non-Maximum Suppresion (NMS)"
+      },
+      {
+        "level": "subsection",
+        "id": "2.2.3",
+        "name": "Mean Average Precision (mAP)"
+      },
+      {
+        "level": "subsection",
+        "id": "2.2.4",
+        "name": "Selective Search"
+      },
+      {
+        "level": "subsection",
+        "id": "2.2.5",
+        "name": "Anchor Boxes"
+      },
+      {
+        "level": "section",
+        "id": "2.3",
+        "name": "R-CNNs"
+      },
+      {
+        "level": "section",
+        "id": "2.4",
+        "name": "Fast R-CNNs"
+      },
+      {
+        "level": "section",
+        "id": "2.5",
+        "name": "Faster R-CNNs"
+      },
+      {
+        "level": "section",
+        "id": "2.6",
+        "name": "Single Stage Object Detection"
+      },
+      {
+        "level": "subsection",
+        "id": "2.6.1",
+        "name": "YOLO"
+      },
+      {
+        "level": "section",
+        "id": "2.7",
+        "name": "Exercises"
+      }
+    ]
+  },
+  {
+    "source": "chapter_3.tex",
+    "toc": [
+      {
+        "level": "chapter",
+        "id": "3",
+        "name": "Semantic Segmentation and Style Transfer"
+      },
+      {
+        "level": "section",
+        "id": "3.1",
+        "name": "Semantic Segmentation"
+      },
+      {
+        "level": "subsection",
+        "id": "3.1.1",
+        "name": "Naive Approach"
+      },
+      {
+        "level": "subsection",
+        "id": "3.1.2",
+        "name": "Transposed Convolution"
+      },
+      {
+        "level": "subsection",
+        "id": "3.1.3",
+        "name": "Fully Convolutional Networks"
+      },
+      {
+        "level": "subsection",
+        "id": "3.1.4",
+        "name": "U-Net"
+      },
+      {
+        "level": "section",
+        "id": "3.2",
+        "name": "Style Transfer"
+      },
+      {
+        "level": "subsection",
+        "id": "3.2.1",
+        "name": "Method"
+      },
+      {
+        "level": "subsection",
+        "id": "3.2.2",
+        "name": "Extracting Features"
+      },
+      {
+        "level": "subsection",
+        "id": "3.2.3",
+        "name": "Defining the Loss Function"
+      },
+      {
+        "level": "section",
+        "id": "3.3",
+        "name": "Other tasks"
+      },
+      {
+        "level": "subsection",
+        "id": "3.3.1",
+        "name": "Image Segmentation"
+      },
+      {
+        "level": "subsection",
+        "id": "3.3.2",
+        "name": "Instance Segmentation"
+      },
+      {
+        "level": "subsection",
+        "id": "3.3.3",
+        "name": "Panoptic Segmentation"
+      },
+      {
+        "level": "subsection",
+        "id": "3.3.4",
+        "name": "Keypoint Estimation"
+      },
+      {
+        "level": "section",
+        "id": "3.4",
+        "name": "Exercises"
+      }
+    ]
+  },
+  {
+    "source": "chapter_4.tex",
+    "toc": [
+      {
+        "level": "chapter",
+        "id": "4",
+        "name": "3D and Video"
+      },
+      {
+        "level": "section",
+        "id": "4.1",
+        "name": "3D Representations"
+      },
+      {
+        "level": "subsection",
+        "id": "4.1.1",
+        "name": "Depth Map"
+      },
+      {
+        "level": "subsection",
+        "id": "4.1.2",
+        "name": "Surface Normals"
+      },
+      {
+        "level": "subsection",
+        "id": "4.1.3",
+        "name": "Implicit Functions"
+      },
+      {
+        "level": "subsection",
+        "id": "4.1.4",
+        "name": "Voxels"
+      },
+      {
+        "level": "subsection",
+        "id": "4.1.5",
+        "name": "Point Cloud"
+      },
+      {
+        "level": "section",
+        "id": "4.2",
+        "name": "3D Convolutions"
+      },
+      {
+        "level": "subsection",
+        "id": "4.2.1",
+        "name": "Model"
+      },
+      {
+        "level": "subsection",
+        "id": "4.2.2",
+        "name": "Max Pooling (3D) and Average Pooling (3D)"
+      },
+      {
+        "level": "section",
+        "id": "4.3",
+        "name": "Predicting Representations"
+      },
+      {
+        "level": "subsection",
+        "id": "4.3.1",
+        "name": "Predicting Depth Maps"
+      },
+      {
+        "level": "subsection",
+        "id": "4.3.2",
+        "name": "Predicting Surface Normals"
+      },
+      {
+        "level": "subsection",
+        "id": "4.3.3",
+        "name": "Simulating Implicit Functions"
+      },
+      {
+        "level": "subsection",
+        "id": "4.3.4",
+        "name": "Predicting Voxels Classes"
+      },
+      {
+        "level": "subsection",
+        "id": "4.3.5",
+        "name": "Predicting Point Clouds"
+      },
+      {
+        "level": "section",
+        "id": "4.4",
+        "name": "Predicting Shapes"
+      },
+      {
+        "level": "subsection",
+        "id": "4.4.1",
+        "name": "Metrics"
+      },
+      {
+        "level": "subsection",
+        "id": "4.4.2",
+        "name": "3D Datasets"
+      },
+      {
+        "level": "subsection",
+        "id": "4.4.3",
+        "name": "Generating Point Clouds"
+      },
+      {
+        "level": "section",
+        "id": "4.5",
+        "name": "Video"
+      },
+      {
+        "level": "subsection",
+        "id": "4.5.1",
+        "name": "Introduction to Video"
+      },
+      {
+        "level": "subsection",
+        "id": "4.5.2",
+        "name": "Action Recognition"
+      },
+      {
+        "level": "subsection",
+        "id": "4.5.3",
+        "name": "Comparation of the Models"
+      },
+      {
+        "level": "subsection",
+        "id": "4.5.4",
+        "name": "Long-Term Temporal Structure"
+      },
+      {
+        "level": "subsection",
+        "id": "4.5.5",
+        "name": "Other Problems in Video"
+      },
+      {
+        "level": "section",
+        "id": "4.6",
+        "name": "Exercises"
+      }
+    ]
+  },
+  {
+    "source": "chapter_5.tex",
+    "toc": [
+      {
+        "level": "chapter",
+        "id": "5",
+        "name": "Explainability"
+      },
+      {
+        "level": "section",
+        "id": "5.1",
+        "name": "Introduction"
+      },
+      {
+        "level": "subsection",
+        "id": "5.1.1",
+        "name": "Why Explainability?"
+      },
+      {
+        "level": "subsection",
+        "id": "5.1.2",
+        "name": "Interpretability vs Explainability"
+      },
+      {
+        "level": "section",
+        "id": "5.2",
+        "name": "Visualization of Internal Features"
+      },
+      {
+        "level": "subsection",
+        "id": "5.2.1",
+        "name": "Maximally Activating Patches"
+      },
+      {
+        "level": "subsection",
+        "id": "5.2.2",
+        "name": "Gradient Ascent"
+      },
+      {
+        "level": "subsection",
+        "id": "5.2.3",
+        "name": "Feature Inversion"
+      },
+      {
+        "level": "subsection",
+        "id": "5.2.4",
+        "name": "DeepDream"
+      },
+      {
+        "level": "section",
+        "id": "5.3",
+        "name": "Perturbation-Based Methods"
+      },
+      {
+        "level": "subsection",
+        "id": "5.3.1",
+        "name": "SHAP"
+      },
+      {
+        "level": "subsection",
+        "id": "5.3.2",
+        "name": "Occlusion"
+      },
+      {
+        "level": "subsection",
+        "id": "5.3.3",
+        "name": "RISE"
+      },
+      {
+        "level": "section",
+        "id": "5.4",
+        "name": "Gradient-Based Methods"
+      },
+      {
+        "level": "subsection",
+        "id": "5.4.1",
+        "name": "Saliency Maps"
+      },
+      {
+        "level": "subsection",
+        "id": "5.4.2",
+        "name": "Input x Gradient"
+      },
+      {
+        "level": "subsection",
+        "id": "5.4.3",
+        "name": "Guided Backpropagation"
+      },
+      {
+        "level": "subsection",
+        "id": "5.4.4",
+        "name": "DeconvNet"
+      },
+      {
+        "level": "subsection",
+        "id": "5.4.5",
+        "name": "SmoothGrad"
+      },
+      {
+        "level": "subsection",
+        "id": "5.4.6",
+        "name": "Integrated Gradients"
+      },
+      {
+        "level": "section",
+        "id": "5.5",
+        "name": "Ad-Hoc Methods"
+      },
+      {
+        "level": "subsection",
+        "id": "5.5.1",
+        "name": "CAM"
+      },
+      {
+        "level": "subsection",
+        "id": "5.5.2",
+        "name": "Grad-CAM"
+      },
+      {
+        "level": "subsection",
+        "id": "5.5.3",
+        "name": "Guided Grad-CAM"
+      },
+      {
+        "level": "subsection",
+        "id": "5.5.4",
+        "name": "Attention as Explainability"
+      },
+      {
+        "level": "section",
+        "id": "5.6",
+        "name": "Evaluation"
+      },
+      {
+        "level": "subsection",
+        "id": "5.6.1",
+        "name": "Common Problems"
+      },
+      {
+        "level": "subsection",
+        "id": "5.6.2",
+        "name": "Loyalty and Inverse Loyalty"
+      },
+      {
+        "level": "subsection",
+        "id": "5.6.3",
+        "name": "ROAR"
+      },
+      {
+        "level": "subsection",
+        "id": "5.6.4",
+        "name": "Sanity Checks"
+      },
+      {
+        "level": "section",
+        "id": "5.7",
+        "name": "Exercises"
+      }
+    ]
+  }
+]

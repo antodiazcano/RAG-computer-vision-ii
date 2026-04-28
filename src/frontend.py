@@ -2,6 +2,7 @@
 Streamlit frontend for the RAG Knowledge Base.
 """
 
+import json
 import os
 import sys
 
@@ -13,15 +14,10 @@ ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
-from src.chatbot.clients import CHAT_CLIENTS, create_chat_client
-from src.chatbot.generate import RAGEngine
+from src.chatbot.clients import CHAT_CLIENTS, chat, create_chat_client
+from src.chatbot.rag import RAGTool
 from src.config import config
-from src.utils import (
-    file_hash,
-    get_embedding_client,
-    get_index_vector_db,
-    load_registry,
-)
+from src.utils import get_embedding_client, get_index_vector_db
 
 
 # Cached resources
@@ -214,39 +210,70 @@ with st.sidebar:
 
     st.divider()
 
-    # Number of documents and number of indexed documents in the db
-    st.markdown(
-        "<p style='font-family:IBM Plex Mono,monospace;font-size:11px;"
-        "color:#8b949e;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px'>"
-        "Corpus</p>",
-        unsafe_allow_html=True,
-    )
-    all_files = [
-        p
-        for p in config.paths.documents_folder.iterdir()
-        if p.suffix.lower() in config.paths.supported_extensions
-    ]
-    reg = load_registry()
-    indexed_count = sum(1 for p in all_files if reg.get(p.name) == file_hash(p))
-    col1, col2 = st.columns(2)
-    col1.metric("Total documents", len(all_files))
-    col2.metric("Indexed", indexed_count)
+    # Corpus index (table of contents)
+    if config.paths.corpus_index_path.exists():
+        try:
+            corpus = json.loads(
+                config.paths.corpus_index_path.read_text(encoding="utf-8")
+            )
+        except (json.JSONDecodeError, FileNotFoundError):
+            corpus = []
 
-    # List of documents
-    if all_files:
-        with st.expander("📄 Documents", expanded=False):
-            for p in sorted(all_files):
-                h = file_hash(p)
-                indexed = reg.get(p.name) == h
-                dot = "🟢" if indexed else "🟡"
-                kb = round(p.stat().st_size / 1024, 1)
-                st.markdown(
-                    f"{dot} `{p.name}` <span style='color:#484f58;font-size:11px'>{kb} "
-                    f"KB</span>",
-                    unsafe_allow_html=True,
-                )
-    else:
-        st.info("No documents found. Upload some below.")
+        if corpus:
+            st.markdown(
+                "<div style='text-align:center;margin-bottom:12px'>"
+                "<span style='font-size:32px'>📚</span><br>"
+                "<span style='font-family:IBM Plex Mono,monospace;"
+                "font-size:16px;font-weight:700;color:#00e5ff;"
+                "letter-spacing:.08em'>Table of Contents</span>"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+            chapters = [
+                entry
+                for entry in corpus
+                if any(h["level"] == "chapter" for h in entry.get("toc", []))
+            ]
+            for entry in chapters:
+                toc = entry["toc"]
+                chapter_items = [h for h in toc if h["level"] == "chapter"]
+                if not chapter_items:
+                    continue
+                chapter_name = chapter_items[0]["name"]
+                chapter_id = chapter_items[0]["id"]
+
+                sections = [h for h in toc if h["level"] == "section"]
+                with st.expander(f"📖  {chapter_id}. {chapter_name}", expanded=False):
+                    for sec in sections:
+                        subsections = [
+                            h
+                            for h in toc
+                            if h["level"] == "subsection"
+                            and h["id"].startswith(sec["id"] + ".")
+                        ]
+                        st.markdown(
+                            f"<div style='color:#e6edf3;font-size:12px;"
+                            f"font-weight:600;margin:8px 0 4px'>"
+                            f"§ {sec['id']}  {sec['name']}</div>",
+                            unsafe_allow_html=True,
+                        )
+                        for sub in subsections:
+                            st.markdown(
+                                f"<div style='color:#8b949e;font-size:11px;"
+                                f"margin-left:16px;line-height:1.8'>"
+                                f"§ {sub['id']}  {sub['name']}</div>",
+                                unsafe_allow_html=True,
+                            )
+
+            # PDFs without TOC
+            pdf_entries = [entry for entry in corpus if not entry.get("toc")]
+            if pdf_entries:
+                for entry in pdf_entries:
+                    st.markdown(
+                        f"<div style='color:#8b949e;font-size:11px;"
+                        f"margin:4px 0'>📄 {entry['source']}</div>",
+                        unsafe_allow_html=True,
+                    )
 
     st.divider()
 
@@ -356,24 +383,17 @@ if question:
             unsafe_allow_html=True,
         )
 
-        with st.spinner("Retrieving & generating..."):
+        with st.spinner("Thinking..."):
             history = [
                 {"role": m["role"], "content": m["content"]}
                 for m in st.session_state.messages[:-1]
             ]
             client = create_chat_client(provider, api_key)
-            engine = RAGEngine(
-                chat_client=client,
-                model=chat_model,
-                embedding_client=EMBEDDING_CLIENT,
-                pinecone_index=PINECONE_IDX,
+            rag_tool = RAGTool(EMBEDDING_CLIENT, PINECONE_IDX, top_k=top_k)
+            answer, chunks = chat(
+                client, question, rag_tool=rag_tool, chat_history=history
             )
-            answer, chunks = engine.generate_answer(
-                question,
-                top_k=top_k,
-                chat_history=history,
-            )
-            sources = sorted(chunks, key=lambda x: -x["score"])
+            sources = sorted(chunks, key=lambda x: -x["score"]) if chunks else []
 
         st.session_state.messages.append(
             {

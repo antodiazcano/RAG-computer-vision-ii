@@ -26,7 +26,7 @@ def file_hash(path: Path) -> str:
         Hash of the path.
     """
 
-    return hashlib.md5(path.read_bytes()).hexdigest()
+    return hashlib.md5(path.read_bytes(), usedforsecurity=False).hexdigest()
 
 
 def load_registry() -> dict[str, str]:

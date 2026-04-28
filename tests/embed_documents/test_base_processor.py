@@ -15,6 +15,7 @@ class StubProcessor(Processor):
 
     def __init__(
         self,
+        *,
         path: Path,
         embedding_client: MagicMock,
         pinecone_index: MagicMock,
@@ -44,9 +45,7 @@ def _make_chunks(n: int, source: str = "doc.pdf") -> list[dict[str, str | int]]:
     ]
 
 
-def _make_mocks(
-    embed_values: list[float] | None = None,
-) -> tuple[MagicMock, MagicMock]:
+def _make_mocks(embed_values: list[float] | None = None) -> tuple[MagicMock, MagicMock]:
     """Creates mock embedding client and Pinecone index."""
     embedding_client = MagicMock()
     mock_embedding = MagicMock()
@@ -67,7 +66,7 @@ class TestInit:
         f = tmp_path / "doc.pdf"
         f.write_bytes(b"fake")
         ec, pi = _make_mocks()
-        proc = StubProcessor(f, ec, pi, [])
+        proc = StubProcessor(path=f, embedding_client=ec, pinecone_index=pi, chunks=[])
 
         assert proc.path == f
         assert proc.batch_size == 50
@@ -77,7 +76,13 @@ class TestInit:
         f = tmp_path / "doc.pdf"
         f.write_bytes(b"fake")
         ec, pi = _make_mocks()
-        proc = StubProcessor(f, ec, pi, [], batch_size=10)
+        proc = StubProcessor(
+            path=f,
+            embedding_client=ec,
+            pinecone_index=pi,
+            chunks=[],
+            batch_size=10,
+        )
 
         assert proc.batch_size == 10
 
@@ -88,7 +93,9 @@ class TestEmbedText:
     def test_returns_embedding_values(self) -> None:
         """Checks that the embedding values from the API response are returned."""
         ec, pi = _make_mocks([0.5, 0.6])
-        proc = StubProcessor(Path("doc.pdf"), ec, pi, [])
+        proc = StubProcessor(
+            path=Path("doc.pdf"), embedding_client=ec, pinecone_index=pi, chunks=[]
+        )
 
         result = proc._embed_text("some text")
 
@@ -97,7 +104,9 @@ class TestEmbedText:
     def test_passes_correct_model_and_task_type(self) -> None:
         """Checks that the correct model and RETRIEVAL_DOCUMENT task type are used."""
         ec, pi = _make_mocks()
-        proc = StubProcessor(Path("doc.pdf"), ec, pi, [])
+        proc = StubProcessor(
+            path=Path("doc.pdf"), embedding_client=ec, pinecone_index=pi, chunks=[]
+        )
 
         proc._embed_text("hello")
 
@@ -113,10 +122,7 @@ class TestProcess:
     @patch("src.embed_documents.base_processor.file_hash")
     @patch("src.embed_documents.base_processor.load_registry")
     def test_returns_chunk_count(
-        self,
-        mock_load_reg: MagicMock,
-        mock_hash: MagicMock,
-        tmp_path: Path,
+        self, mock_load_reg: MagicMock, mock_hash: MagicMock, tmp_path: Path
     ) -> None:
         """Checks that the number of processed chunks is returned."""
         f = tmp_path / "doc.pdf"
@@ -125,7 +131,12 @@ class TestProcess:
         mock_hash.return_value = "new_hash"
         ec, pi = _make_mocks()
 
-        proc = StubProcessor(f, ec, pi, _make_chunks(3))
+        proc = StubProcessor(
+            path=f,
+            embedding_client=ec,
+            pinecone_index=pi,
+            chunks=_make_chunks(3),
+        )
         result = proc.process()
 
         assert result == 3
@@ -147,7 +158,12 @@ class TestProcess:
         mock_hash.return_value = "same_hash"
         ec, pi = _make_mocks()
 
-        proc = StubProcessor(f, ec, pi, _make_chunks(2))
+        proc = StubProcessor(
+            path=f,
+            embedding_client=ec,
+            pinecone_index=pi,
+            chunks=_make_chunks(2),
+        )
         result = proc.process()
 
         assert result == 0
@@ -158,10 +174,7 @@ class TestProcess:
     @patch("src.embed_documents.base_processor.file_hash")
     @patch("src.embed_documents.base_processor.load_registry")
     def test_upserts_vectors_to_pinecone(
-        self,
-        mock_load_reg: MagicMock,
-        mock_hash: MagicMock,
-        tmp_path: Path,
+        self, mock_load_reg: MagicMock, mock_hash: MagicMock, tmp_path: Path
     ) -> None:
         """Checks that vectors are upserted with correct values and metadata."""
         f = tmp_path / "doc.pdf"
@@ -170,7 +183,12 @@ class TestProcess:
         mock_hash.return_value = "new_hash"
         ec, pi = _make_mocks()
 
-        proc = StubProcessor(f, ec, pi, _make_chunks(1))
+        proc = StubProcessor(
+            path=f,
+            embedding_client=ec,
+            pinecone_index=pi,
+            chunks=_make_chunks(1),
+        )
         proc.process()
 
         pi.upsert.assert_called_once()
@@ -184,10 +202,7 @@ class TestProcess:
     @patch("src.embed_documents.base_processor.file_hash")
     @patch("src.embed_documents.base_processor.load_registry")
     def test_batches_large_uploads(
-        self,
-        mock_load_reg: MagicMock,
-        mock_hash: MagicMock,
-        tmp_path: Path,
+        self, mock_load_reg: MagicMock, mock_hash: MagicMock, tmp_path: Path
     ) -> None:
         """Checks that vectors are upserted in batches of the configured size."""
         f = tmp_path / "doc.pdf"
@@ -196,7 +211,13 @@ class TestProcess:
         mock_hash.return_value = "new_hash"
         ec, pi = _make_mocks()
 
-        proc = StubProcessor(f, ec, pi, _make_chunks(120), batch_size=50)
+        proc = StubProcessor(
+            path=f,
+            embedding_client=ec,
+            pinecone_index=pi,
+            chunks=_make_chunks(120),
+            batch_size=50,
+        )
         proc.process()
 
         assert pi.upsert.call_count == 3  # 50 + 50 + 20
@@ -218,7 +239,12 @@ class TestProcess:
         mock_hash.return_value = "new_hash"
         ec, pi = _make_mocks()
 
-        proc = StubProcessor(f, ec, pi, _make_chunks(1))
+        proc = StubProcessor(
+            path=f,
+            embedding_client=ec,
+            pinecone_index=pi,
+            chunks=_make_chunks(1),
+        )
         proc.process()
 
         mock_save_reg.assert_called_once()
@@ -242,7 +268,7 @@ class TestProcess:
         mock_hash.return_value = "hash_empty"
         ec, pi = _make_mocks()
 
-        proc = StubProcessor(f, ec, pi, [])
+        proc = StubProcessor(path=f, embedding_client=ec, pinecone_index=pi, chunks=[])
         result = proc.process()
 
         assert result == 0
@@ -260,7 +286,7 @@ class TestGetDocumentHash:
         f.write_bytes(b"content")
         ec, pi = _make_mocks()
 
-        proc = StubProcessor(f, ec, pi, [])
+        proc = StubProcessor(path=f, embedding_client=ec, pinecone_index=pi, chunks=[])
 
         expected = hashlib.md5(b"content").hexdigest()
         assert proc.get_document_hash() == expected

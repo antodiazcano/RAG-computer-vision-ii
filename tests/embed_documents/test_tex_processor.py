@@ -123,9 +123,9 @@ class TestSplitIntoSections:
         content = "\n\\section{Intro}\nSome text.\n"
         sections, total = TEXProcessor._split_into_sections(content)
 
-        assert total == 1
+        assert total == 0
         assert len(sections) == 1
-        assert sections[0][0] == "1"
+        assert sections[0][0] == "0.1"
         assert "Some text." in sections[0][1]
 
     def test_multiple_sections(self) -> None:
@@ -135,21 +135,21 @@ class TestSplitIntoSections:
         )
         sections, total = TEXProcessor._split_into_sections(content)
 
-        assert total == 3
+        assert total == 0
         assert len(sections) == 3
-        assert [s[0] for s in sections] == ["1", "2", "3"]
+        assert [s[0] for s in sections] == ["0.1", "0.2", "0.3"]
 
     def test_subsections(self) -> None:
-        """Checks that subsections are numbered as section.subsection."""
+        """Checks that subsections are numbered as chapter.section.subsection."""
         content = (
             "\n\\section{Main}\nIntro.\n\\subsection{A}\nSub A.\n\\subsection{B}\nSub "
-            "B.\.\n"
+            "B.\n"
         )
         sections, total = TEXProcessor._split_into_sections(content)
 
-        assert total == 1
+        assert total == 0
         ids = [s[0] for s in sections]
-        assert ids == ["1", "1.1", "1.2"]
+        assert ids == ["0.1", "0.1.1", "0.1.2"]
 
     def test_subsection_resets_on_new_section(self) -> None:
         """Checks that subsection numbering resets when a new section starts."""
@@ -159,10 +159,10 @@ class TestSplitIntoSections:
         )
         sections, total = TEXProcessor._split_into_sections(content)
 
-        assert total == 2
+        assert total == 0
         ids = [s[0] for s in sections]
-        assert "1.1" in ids
-        assert "2.1" in ids
+        assert "0.1.1" in ids
+        assert "0.2.1" in ids
 
     def test_text_before_first_section(self) -> None:
         """Checks that text before the first section is captured under id 0."""
@@ -171,7 +171,7 @@ class TestSplitIntoSections:
 
         assert sections[0][0] == "0"
         assert "Preamble text." in sections[0][1]
-        assert sections[1][0] == "1"
+        assert sections[1][0] == "0.1"
 
     def test_no_sections(self) -> None:
         """Checks that content without sections returns one entry under id 0."""
@@ -194,9 +194,31 @@ class TestSplitIntoSections:
         content = "\n\\section{A}\n\\section{B}\nText B.\n"
         sections, total = TEXProcessor._split_into_sections(content)
 
-        assert total == 2
+        assert total == 0
         assert len(sections) == 1
-        assert sections[0][0] == "2"
+        assert sections[0][0] == "0.2"
+
+    def test_chapters_with_sections(self) -> None:
+        """Checks that chapters, sections, and subsections are numbered correctly."""
+        content = (
+            "\n\\chapter{Ch1}\n\\section{S1}\nText.\n"
+            "\\subsection{Sub1}\nMore.\n"
+            "\\chapter{Ch2}\n\\section{S2}\nText2.\n"
+        )
+        sections, total = TEXProcessor._split_into_sections(content)
+
+        assert total == 2
+        ids = [s[0] for s in sections]
+        assert ids == ["1.1", "1.1.1", "2.1"]
+
+    def test_chapters_with_offset(self) -> None:
+        """Checks that chap_offset shifts all chapter numbers."""
+        content = "\n\\chapter{Ch}\n\\section{S}\nText.\n"
+        sections, total = TEXProcessor._split_into_sections(content, chap_offset=4)
+
+        assert total == 1
+        ids = [s[0] for s in sections]
+        assert ids == ["5.1"]
 
 
 class TestObtainChunks:
@@ -226,13 +248,13 @@ class TestObtainChunks:
         chunks = proc._obtain_chunks()
 
         assert len(chunks) == 3
-        assert chunks[0]["location"] == "1"
+        assert chunks[0]["location"] == "0.1"
         assert chunks[0]["text"] == "First paragraph."
-        assert chunks[1]["location"] == "1"
+        assert chunks[1]["location"] == "0.1"
         assert chunks[1]["text"] == "Second paragraph."
-        assert chunks[2]["location"] == "2"
+        assert chunks[2]["location"] == "0.2"
         assert chunks[2]["text"] == "Methods paragraph."
-        assert all(c["total_locations"] == 2 for c in chunks)
+        assert all(c["total_locations"] == 0 for c in chunks)
         assert all(c["doc_type"] == "tex" for c in chunks)
 
     def test_subsections_end_to_end(self, tmp_path: Path) -> None:
@@ -253,7 +275,7 @@ class TestObtainChunks:
         chunks = proc._obtain_chunks()
 
         assert len(chunks) == 3
-        assert [c["location"] for c in chunks] == ["1", "1.1", "1.2"]
+        assert [c["location"] for c in chunks] == ["0.1", "0.1.1", "0.1.2"]
 
     def test_preserves_math(self, tmp_path: Path) -> None:
         """Checks that math expressions survive the full pipeline."""
@@ -280,6 +302,20 @@ class TestObtainChunks:
         chunks = proc._obtain_chunks()
 
         assert chunks[0]["source"] == "lecture.tex"
+
+    def test_chapter_offset_from_filename(self, tmp_path: Path) -> None:
+        """Checks that chapter numbering uses the number from the filename."""
+        content = (
+            "\\begin{document}\n"
+            "\\chapter{Ch}\n\\section{S}\nText.\n"
+            "\\end{document}\n"
+        )
+        f = tmp_path / "chapter_3.tex"
+        f.write_text(content, encoding="utf-8")
+        proc = TEXProcessor(f, MagicMock(), MagicMock())
+        chunks = proc._obtain_chunks()
+
+        assert chunks[0]["location"] == "3.1"
 
     def test_empty_document(self, tmp_path: Path) -> None:
         """Checks that a document with no content returns no chunks."""
@@ -309,3 +345,85 @@ class TestObtainChunks:
         for c in chunks:
             assert isinstance(c["text"], str)
             assert c["text"].strip()
+
+
+class TestExtractToc:
+    """Tests for the TEXProcessor.extract_toc static method."""
+
+    def _write_tex(self, tmp_path: Path, content: str) -> Path:
+        """Writes a .tex file and returns its path."""
+        f = tmp_path / "doc.tex"
+        f.write_text(content, encoding="utf-8")
+        return f
+
+    def test_extracts_chapter_section_subsection(self, tmp_path: Path) -> None:
+        """Checks that all heading levels are extracted with correct ids and names."""
+        content = (
+            "\\begin{document}\n"
+            "\\chapter{Explainability}\n"
+            "\\section{Introduction}\n"
+            "\\subsection{Why Explainability?}\n"
+            "Text.\n"
+            "\\end{document}\n"
+        )
+        toc = TEXProcessor.extract_toc(self._write_tex(tmp_path, content))
+
+        assert len(toc) == 3
+        assert toc[0] == {"level": "chapter", "id": "1", "name": "Explainability"}
+        assert toc[1] == {"level": "section", "id": "1.1", "name": "Introduction"}
+        assert toc[2] == {
+            "level": "subsection",
+            "id": "1.1.1",
+            "name": "Why Explainability?",
+        }
+
+    def test_chapter_offset_from_filename(self, tmp_path: Path) -> None:
+        """Checks that the chapter number is derived from the filename."""
+        content = (
+            "\\begin{document}\n"
+            "\\chapter{Explainability}\n"
+            "\\section{Intro}\n"
+            "Text.\n"
+            "\\end{document}\n"
+        )
+        f = tmp_path / "chapter_5.tex"
+        f.write_text(content, encoding="utf-8")
+        toc = TEXProcessor.extract_toc(f)
+
+        assert toc[0] == {"level": "chapter", "id": "5", "name": "Explainability"}
+        assert toc[1] == {"level": "section", "id": "5.1", "name": "Intro"}
+
+    def test_multiple_chapters(self, tmp_path: Path) -> None:
+        """Checks that numbering resets correctly across chapters."""
+        content = (
+            "\\begin{document}\n"
+            "\\chapter{Ch1}\n\\section{S1}\nText.\n"
+            "\\chapter{Ch2}\n\\section{S2}\nText.\n"
+            "\\end{document}\n"
+        )
+        toc = TEXProcessor.extract_toc(self._write_tex(tmp_path, content))
+
+        assert toc[0]["id"] == "1"
+        assert toc[1]["id"] == "1.1"
+        assert toc[2]["id"] == "2"
+        assert toc[3]["id"] == "2.1"
+
+    def test_empty_document(self, tmp_path: Path) -> None:
+        """Checks that a document with no headings returns an empty toc."""
+        content = "\\begin{document}\nJust text.\n\\end{document}\n"
+        toc = TEXProcessor.extract_toc(self._write_tex(tmp_path, content))
+
+        assert not toc
+
+    def test_ignores_preamble(self, tmp_path: Path) -> None:
+        """Checks that headings in the preamble are ignored."""
+        content = (
+            "\\documentclass{book}\n"
+            "\\begin{document}\n"
+            "\\chapter{Real}\nText.\n"
+            "\\end{document}\n"
+        )
+        toc = TEXProcessor.extract_toc(self._write_tex(tmp_path, content))
+
+        assert len(toc) == 1
+        assert toc[0]["name"] == "Real"
