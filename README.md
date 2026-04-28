@@ -92,7 +92,8 @@ PINECONE_REGION=<your-pinecone-region>
 # Optional — LangSmith observability
 LANGSMITH_API_KEY=<your-langsmith-api-key>
 LANGSMITH_TRACING=true
-LANGSMITH_PROJECT=RAG-computer-vision-ii
+LANGSMITH_PROJECT=<your-langsmith-project>
+LANGSMITH_ENDPOINT=https://api.smith.langchain.com
 ```
 
 > **Note:** LangSmith variables are optional. If set, all LLM calls and tool invocations are automatically traced at [smith.langchain.com](https://smith.langchain.com) — no code changes needed.

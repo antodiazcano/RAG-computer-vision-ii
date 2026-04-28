@@ -9,6 +9,11 @@ import sys
 import streamlit as st
 from pinecone.db_data.index import Index
 
+# Expose Streamlit secrets as env vars for LangSmith tracing
+for key in ("LANGSMITH_API_KEY", "LANGSMITH_TRACING", "LANGSMITH_PROJECT", "LANGSMITH_ENDPOINT"):
+    if key not in os.environ and key in st.secrets:
+        os.environ[key] = st.secrets[key]
+
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT_DIR not in sys.path:
