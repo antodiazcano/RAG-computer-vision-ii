@@ -6,13 +6,23 @@ import json
 import os
 import sys
 
-import streamlit as st
-from pinecone.db_data.index import Index
+# Set LangSmith env vars before any LangChain imports
+# Streamlit Cloud exposes secrets via st.secrets, not os.environ
+try:
+    import streamlit as st
 
-# Expose Streamlit secrets as env vars for LangSmith tracing
-for key in ("LANGSMITH_API_KEY", "LANGSMITH_TRACING", "LANGSMITH_PROJECT", "LANGSMITH_ENDPOINT"):
-    if key not in os.environ and key in st.secrets:
-        os.environ[key] = st.secrets[key]
+    for key in (
+        "LANGSMITH_API_KEY",
+        "LANGSMITH_TRACING",
+        "LANGSMITH_PROJECT",
+        "LANGSMITH_ENDPOINT",
+    ):
+        if key not in os.environ and key in st.secrets:
+            os.environ[key] = st.secrets[key]
+except Exception:
+    import streamlit as st
+
+from pinecone.db_data.index import Index
 
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
