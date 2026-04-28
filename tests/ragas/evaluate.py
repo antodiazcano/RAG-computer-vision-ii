@@ -5,6 +5,7 @@ RAGAS evaluation script for the RAG pipeline.
 import json
 import time
 from pathlib import Path
+
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_groq import ChatGroq
 from pydantic import SecretStr
@@ -19,6 +20,7 @@ from ragas.metrics._faithfulness import Faithfulness
 from src.chatbot.rag import RAGTool
 from src.config import config
 from src.utils import get_embedding_client, get_index_vector_db
+
 
 EVAL_DATASET_PATH = Path(__file__).parent / "eval_dataset.json"
 RESULTS_PATH = Path(__file__).parent / "results.json"
@@ -137,7 +139,7 @@ def main() -> None:
         print("Evaluation did not return results.")
         return
 
-    scores = result._repr_dict
+    scores = result.to_pandas().mean(numeric_only=True).to_dict()
 
     print("\n===== RAGAS Results =====")
     for metric, score in scores.items():

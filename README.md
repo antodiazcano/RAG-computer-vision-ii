@@ -78,6 +78,7 @@ flowchart TD
 Create a `.env` file in the project root:
 
 ```env
+# Required
 GEMINI_API_KEY=<your-gemini-api-key>
 GROQ_API_KEY=<your-groq-api-key>
 
@@ -85,7 +86,14 @@ PINECONE_API_KEY=<your-pinecone-api-key>
 PINECONE_INDEX_NAME=<your-pinecone-index-name>
 PINECONE_CLOUD=<your-pinecone-cloud>
 PINECONE_REGION=<your-pinecone-region>
+
+# Optional — LangSmith observability
+LANGSMITH_API_KEY=<your-langsmith-api-key>
+LANGSMITH_TRACING=true
+LANGSMITH_PROJECT=RAG-computer-vision-ii
 ```
+
+> **Note:** LangSmith variables are optional. If set, all LLM calls and tool invocations are automatically traced at [smith.langchain.com](https://smith.langchain.com) — no code changes needed.
 
 ### 2. Index Documents
 

@@ -149,9 +149,7 @@ class TestSafeLlmResponse:
         llm_with_tools.invoke.return_value = expected
         llm = MagicMock()
 
-        result = _safe_llm_response(
-            llm_with_tools, llm, [HumanMessage(content="q")]
-        )
+        result = _safe_llm_response(llm_with_tools, llm, [HumanMessage(content="q")])
 
         assert result == expected
         llm.invoke.assert_not_called()
@@ -166,9 +164,7 @@ class TestSafeLlmResponse:
         llm = MagicMock()
         llm.invoke.return_value = fallback
 
-        result = _safe_llm_response(
-            llm_with_tools, llm, [HumanMessage(content="q")]
-        )
+        result = _safe_llm_response(llm_with_tools, llm, [HumanMessage(content="q")])
 
         assert result == fallback
 
@@ -182,9 +178,7 @@ class TestSafeLlmResponse:
         llm = MagicMock()
         llm.invoke.return_value = fallback
 
-        result = _safe_llm_response(
-            llm_with_tools, llm, [HumanMessage(content="q")]
-        )
+        result = _safe_llm_response(llm_with_tools, llm, [HumanMessage(content="q")])
 
         assert result == fallback
 
@@ -195,6 +189,4 @@ class TestSafeLlmResponse:
         llm = MagicMock()
 
         with pytest.raises(RuntimeError, match="unexpected"):
-            _safe_llm_response(
-                llm_with_tools, llm, [HumanMessage(content="q")]
-            )
+            _safe_llm_response(llm_with_tools, llm, [HumanMessage(content="q")])
