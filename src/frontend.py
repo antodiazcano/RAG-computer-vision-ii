@@ -19,6 +19,9 @@ try:
     ):
         if key not in os.environ and key in st.secrets:
             os.environ[key] = st.secrets[key]
+    # Debug: remove after confirming tracing works
+    if os.environ.get("LANGSMITH_TRACING"):
+        print(f"[LangSmith] Tracing enabled, project={os.environ.get('LANGSMITH_PROJECT')}")
 except Exception:
     import streamlit as st
 
